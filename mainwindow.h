@@ -62,6 +62,7 @@ private slots:
     // UDP data handling
     void onUdpConnectionChanged(bool connected);
     void onNewDetectionReceived(const DetectionData& detection);
+    void onUdpStatisticsUpdated(int received, int dropped, double rate);
     void onTargetSelected(const TargetDetection& target);
     void onChartDetectionClicked(const TargetDetection& target);
     
@@ -98,7 +99,7 @@ private:
     // Charts
     CustomChart* rawChart;
     CustomChart* fftChart;
-    CustomChart* detectionChart;
+    CustomChart* detectionChart;  // Main detection chart in detection tab
     std::vector<CustomChart*> outputCharts;
     
     // Controls
