@@ -390,9 +390,8 @@ void CustomChart::drawDetectionChart(QPainter& painter)
             // Color based on radial speed
             QColor color = getColorForSpeed(detection.radial_speed);
             
-            // Size based on amplitude
-            //int size = qMax(4, qMin(20, (int)(detection.amplitude / 5.0)));
-            int size = 0;
+            // Size based on amplitude, with minimum size for visibility
+            int size = qMax(8, qMin(20, (int)(detection.amplitude / 5.0 + 8)));
             painter.setPen(QPen(color, 2));
             painter.setBrush(QBrush(color));
             painter.drawEllipse(x - size/2, y - size/2, size, size);
@@ -452,8 +451,7 @@ TargetDetection CustomChart::getDetectionAt(const QPoint& point) const
         
         // Check if click is within detection circle
         int distance = sqrt(pow(point.x() - detectionPoint.x(), 2) + pow(point.y() - detectionPoint.y(), 2));
-        //int detectionSize = qMax(4, qMin(20, (int)(detection.amplitude / 5.0)));
-        int detectionSize = 0;
+        int detectionSize = qMax(8, qMin(20, (int)(detection.amplitude / 5.0 + 8)));
 
         if (distance <= detectionSize / 2) {
             return detection;

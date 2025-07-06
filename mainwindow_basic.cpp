@@ -150,8 +150,21 @@ QWidget* MainWindow::createDetectionTab()
     QWidget* detectionWidget = new QWidget();
     QVBoxLayout* detectionLayout = new QVBoxLayout(detectionWidget);
     
+    // Create a splitter to show both FFT and detection charts
+    QSplitter* splitter = new QSplitter(Qt::Vertical);
+    
+    // FFT Chart for frequency analysis
     fftChart = new CustomChart(CustomChart::FFT_CHART);
-    detectionLayout->addWidget(fftChart);
+    splitter->addWidget(fftChart);
+    
+    // Detection Chart for showing detected targets on polar plot
+    detectionChart = new CustomChart(CustomChart::DETECTION_CHART);
+    splitter->addWidget(detectionChart);
+    
+    // Set equal sizes for both charts
+    splitter->setSizes({1, 1});
+    
+    detectionLayout->addWidget(splitter);
     
     // Threshold control
     QHBoxLayout* thresholdLayout = new QHBoxLayout();
@@ -245,6 +258,11 @@ void MainWindow::setupConnections()
         connect(fftChart, &CustomChart::detectionClicked, this, &MainWindow::onChartDetectionClicked);
     }
     
+    // Connect detection chart click events
+    if (detectionChart) {
+        connect(detectionChart, &CustomChart::detectionClicked, this, &MainWindow::onChartDetectionClicked);
+    }
+    
     // Target lists
     for (auto* targetList : targetLists) {
         connect(targetList, &TargetListWidget::targetSelected, this, &MainWindow::onTargetSelected);
@@ -287,11 +305,17 @@ void MainWindow::showUdpConfigDialog()
     if (!udpConfigDialog) {
         udpConfigDialog = std::make_unique<UdpConfigDialog>(this);
         
-        // Connect UDP signals
+        // Connect UDP signals from dialog
         connect(udpConfigDialog.get(), &UdpConfigDialog::connectionStatusChanged, 
                 this, &MainWindow::onUdpConnectionChanged);
         connect(udpConfigDialog.get(), &UdpConfigDialog::dataReceived, 
                 this, &MainWindow::onNewDetectionReceived);
+        
+        // Connect UDP statistics from the UDP handler directly
+        if (udpConfigDialog->getUdpHandler()) {
+            connect(udpConfigDialog->getUdpHandler(), &UdpHandler::statisticsUpdated,
+                    this, &MainWindow::onUdpStatisticsUpdated);
+        }
     }
     
     udpConfigDialog->exec();
@@ -345,6 +369,7 @@ void MainWindow::toggleFreezeRun()
         // Freeze all charts
         if (rawChart) rawChart->setFrozen(true);
         if (fftChart) fftChart->setFrozen(true);
+        if (detectionChart) detectionChart->setFrozen(true);
         for (auto* chart : outputCharts) {
             chart->setFrozen(true);
         }
@@ -353,6 +378,7 @@ void MainWindow::toggleFreezeRun()
         // Unfreeze all charts
         if (rawChart) rawChart->setFrozen(false);
         if (fftChart) fftChart->setFrozen(false);
+        if (detectionChart) detectionChart->setFrozen(false);
         for (auto* chart : outputCharts) {
             chart->setFrozen(false);
         }
@@ -402,6 +428,19 @@ void MainWindow::onNewDetectionReceived(const DetectionData& detection)
     processDetection(detection);
 }
 
+void MainWindow::onUdpStatisticsUpdated(int received, int dropped, double rate)
+{
+    // Update data rate display
+    updateDataRate(rate);
+    
+    // Update status bar with packet information
+    QString statusMessage = QString("Ready - %1 | Packets: %2 received, %3 dropped")
+                           .arg(connected ? "Connected" : "Not Connected")
+                           .arg(received)
+                           .arg(dropped);
+    statusBar()->showMessage(statusMessage);
+}
+
 void MainWindow::onTargetSelected(const TargetDetection& target)
 {
     highlightTargetInChart(target);
@@ -434,18 +473,28 @@ void MainWindow::processDetection(const DetectionData& detection)
         targetList->onNewDetection(detection);
     }
     
-    // Update charts
+    // Update charts - Convert DetectionData to TargetDetection
+    TargetDetection target = detection.toTargetDetection();
+    
+    // Update FFT chart
     if (fftChart && !frozen) {
-        TargetDetection target = detection.toTargetDetection();
         fftChart->addDetection(target);
     }
     
+    // Update main detection chart in detection tab
+    if (detectionChart && !frozen) {
+        detectionChart->addDetection(target);
+    }
+    
+    // Update output charts
     for (auto* chart : outputCharts) {
         if (!frozen) {
-            TargetDetection target = detection.toTargetDetection();
             chart->addDetection(target);
         }
     }
+    
+    // Update target count in status bar
+    updateTargetCount(static_cast<int>(recentDetections.size()));
 }
 
 void MainWindow::updateConnectionStatus(bool connected)
