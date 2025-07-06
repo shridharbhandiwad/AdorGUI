@@ -69,6 +69,9 @@ private slots:
     // Chart updates
     void updateChartsWithDetections();
     void updateStatus();
+    
+    // Zoom handling
+    void onZoomChanged(double zoomLevel);
 
 private:
     // UI Setup
@@ -118,6 +121,9 @@ private:
     QCheckBox* filter50Hz;
     QCheckBox* filter100Hz;
     QCheckBox* filter150Hz;
+    
+    // Zoom controls
+    QLabel* zoomLevelLabel;
     
     // Target lists
     std::vector<TargetListWidget*> targetLists;

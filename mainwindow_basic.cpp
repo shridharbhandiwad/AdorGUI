@@ -161,10 +161,34 @@ QWidget* MainWindow::createDetectionTab()
     detectionChart = new CustomChart(CustomChart::DETECTION_CHART);
     splitter->addWidget(detectionChart);
     
-    // Set equal sizes for both charts
-    splitter->setSizes({1, 1});
+    // Set sizes - give more space to the detection chart
+    splitter->setSizes({1, 2});
     
     detectionLayout->addWidget(splitter);
+    
+    // Zoom controls for detection chart
+    QGroupBox* zoomGroup = new QGroupBox("Range vs Azimuth Plot Controls");
+    QHBoxLayout* zoomLayout = new QHBoxLayout(zoomGroup);
+    
+    QPushButton* zoomInBtn = new QPushButton("Zoom In");
+    QPushButton* zoomOutBtn = new QPushButton("Zoom Out");
+    QPushButton* resetZoomBtn = new QPushButton("Reset Zoom");
+    zoomLevelLabel = new QLabel("Zoom: 1.0x");
+    
+    zoomLayout->addWidget(new QLabel("Zoom:"));
+    zoomLayout->addWidget(zoomInBtn);
+    zoomLayout->addWidget(zoomOutBtn);
+    zoomLayout->addWidget(resetZoomBtn);
+    zoomLayout->addWidget(zoomLevelLabel);
+    zoomLayout->addStretch();
+    
+    // Connect zoom buttons
+    connect(zoomInBtn, &QPushButton::clicked, detectionChart, &CustomChart::zoomIn);
+    connect(zoomOutBtn, &QPushButton::clicked, detectionChart, &CustomChart::zoomOut);
+    connect(resetZoomBtn, &QPushButton::clicked, detectionChart, &CustomChart::resetZoom);
+    connect(detectionChart, &CustomChart::zoomChanged, this, &MainWindow::onZoomChanged);
+    
+    detectionLayout->addWidget(zoomGroup);
     
     // Threshold control
     QHBoxLayout* thresholdLayout = new QHBoxLayout();
@@ -517,6 +541,11 @@ void MainWindow::updateDataRate(double rate)
 void MainWindow::updateTargetCount(int count)
 {
     targetCountLabel->setText(QString("Targets: %1").arg(count));
+}
+
+void MainWindow::onZoomChanged(double zoomLevel)
+{
+    zoomLevelLabel->setText(QString("Zoom: %1x").arg(zoomLevel, 0, 'f', 1));
 }
 
 void MainWindow::showDetectionInChart(const DetectionData& detection)
