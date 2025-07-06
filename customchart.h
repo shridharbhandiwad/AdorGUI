@@ -52,15 +52,23 @@ public:
     void setShowLegend(bool show) { showLegend = show; update(); }
     void setShowGrid(bool show) { showGrid = show; update(); }
     void setMaxDataPoints(int maxPoints) { maxDataPoints = maxPoints; }
+    
+    // Zoom functionality
+    void zoomIn();
+    void zoomOut();
+    void resetZoom();
+    double getZoomLevel() const { return zoomLevel; }
 
 signals:
     void dataUpdated();
     void detectionClicked(const TargetDetection& detection);
+    void zoomChanged(double zoomLevel);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
 
 private slots:
     void updateData();
@@ -73,6 +81,7 @@ private:
     bool showLegend;
     bool showGrid;
     int maxDataPoints;
+    double zoomLevel;
     
     // Timers
     QTimer* updateTimer;

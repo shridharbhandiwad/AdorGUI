@@ -1,6 +1,7 @@
 #include "customchart.h"
 #include <QPaintEvent>
 #include <QResizeEvent>
+#include <QWheelEvent>
 #include <QPolygon>
 #include <QFont>
 #include <cmath>
@@ -13,6 +14,7 @@ CustomChart::CustomChart(ChartType type, QWidget* parent)
     , showLegend(true)
     , showGrid(true)
     , maxDataPoints(1024)
+    , zoomLevel(1.0)
     , gen(rd())
     , dis(-1.0, 1.0)
     , fft_dis(0.0, 100.0)
@@ -58,6 +60,33 @@ void CustomChart::setUpdateInterval(int intervalMs)
 int CustomChart::getUpdateInterval() const
 {
     return updateTimer ? updateTimer->interval() : 1000;
+}
+
+void CustomChart::zoomIn()
+{
+    zoomLevel *= 1.5;
+    if (zoomLevel > 10.0) {
+        zoomLevel = 10.0;
+    }
+    update();
+    emit zoomChanged(zoomLevel);
+}
+
+void CustomChart::zoomOut()
+{
+    zoomLevel /= 1.5;
+    if (zoomLevel < 0.5) {
+        zoomLevel = 0.5;
+    }
+    update();
+    emit zoomChanged(zoomLevel);
+}
+
+void CustomChart::resetZoom()
+{
+    zoomLevel = 1.0;
+    update();
+    emit zoomChanged(zoomLevel);
 }
 
 void CustomChart::addDetection(const TargetDetection& detection)
@@ -158,6 +187,20 @@ void CustomChart::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     calculatePlotArea();
+}
+
+void CustomChart::wheelEvent(QWheelEvent* event)
+{
+    if (chartType == DETECTION_CHART) {
+        if (event->angleDelta().y() > 0) {
+            zoomIn();
+        } else {
+            zoomOut();
+        }
+        event->accept();
+    } else {
+        QWidget::wheelEvent(event);
+    }
 }
 
 void CustomChart::updateData()
@@ -345,28 +388,38 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     
     drawGrid(painter);
     
-    QPoint center = plotArea.center();
-    int maxRadius = qMin(plotArea.width(), plotArea.height()) / 2 - 20;
+    // Calculate semicircle parameters
+    QPoint center = QPoint(plotArea.center().x(), plotArea.bottom() - 20);
+    int maxRadius = (qMin(plotArea.width(), plotArea.height()) * zoomLevel) / 2 - 20;
     
-    // Draw range circles
+    // Ensure semicircle fits within the plot area
+    if (maxRadius > plotArea.height() - 40) {
+        maxRadius = plotArea.height() - 40;
+    }
+    if (maxRadius > plotArea.width() / 2 - 40) {
+        maxRadius = plotArea.width() / 2 - 40;
+    }
+    
+    // Draw range circles (semicircles from -90 to +90 degrees)
     painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
     for (int i = 1; i <= 5; ++i) {
         int r = maxRadius * i / 5;
-        painter.drawEllipse(center.x() - r, center.y() - r, 2 * r, 2 * r);
+        painter.drawArc(center.x() - r, center.y() - r, 2 * r, 2 * r, 0, 180 * 16); // 180 degrees in 16th of a degree
     }
     
-    // Draw azimuth lines
-    for (int angle = 0; angle < 360; angle += 30) {
+    // Draw azimuth lines from -90 to +90 degrees
+    painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
+    for (int angle = -90; angle <= 90; angle += 15) {
         double rad = angle * M_PI / 180.0;
         int x = center.x() + maxRadius * cos(rad);
         int y = center.y() - maxRadius * sin(rad);
         painter.drawLine(center, QPoint(x, y));
     }
     
-    // Draw axes
+    // Draw main axes (horizontal baseline and vertical 0-degree line)
     painter.setPen(QPen(Qt::white, 2));
-    painter.drawLine(center.x(), center.y() - maxRadius, center.x(), center.y() + maxRadius);
-    painter.drawLine(center.x() - maxRadius, center.y(), center.x() + maxRadius, center.y());
+    painter.drawLine(center.x() - maxRadius, center.y(), center.x() + maxRadius, center.y()); // Horizontal baseline
+    painter.drawLine(center.x(), center.y(), center.x(), center.y() - maxRadius); // Vertical 0-degree line
     
     // Draw range labels
     painter.setPen(Qt::white);
@@ -377,28 +430,41 @@ void CustomChart::drawDetectionChart(QPainter& painter)
         painter.drawText(center.x() + r + 5, center.y() - 5, label);
     }
     
-    // Draw detections
+    // Draw azimuth angle labels
+    painter.setPen(Qt::white);
+    painter.setFont(QFont("Arial", 8));
+    for (int angle = -90; angle <= 90; angle += 30) {
+        double rad = angle * M_PI / 180.0;
+        int x = center.x() + (maxRadius + 15) * cos(rad);
+        int y = center.y() - (maxRadius + 15) * sin(rad);
+        painter.drawText(x - 10, y + 5, QString("%1°").arg(angle));
+    }
+    
+    // Draw detections (only show detections within -90 to +90 degree range)
     if (!detections.empty()) {
         for (const auto& detection : detections) {
-            // Calculate position
-            double normalizedRadius = qMin(detection.radius / 100.0, 1.0); // Normalize to 0-100m
-            double rad = detection.azimuth * M_PI / 180.0;
-            
-            int x = center.x() + normalizedRadius * maxRadius * cos(rad);
-            int y = center.y() - normalizedRadius * maxRadius * sin(rad);
-            
-            // Color based on radial speed
-            QColor color = getColorForSpeed(detection.radial_speed);
-            
-            // Size based on amplitude, with minimum size for visibility
-            int size = qMax(8, qMin(20, (int)(detection.amplitude / 5.0 + 8)));
-            painter.setPen(QPen(color, 2));
-            painter.setBrush(QBrush(color));
-            painter.drawEllipse(x - size/2, y - size/2, size, size);
-            
-            // Draw target ID
-            painter.setPen(Qt::white);
-            painter.drawText(x + size/2 + 2, y - size/2 - 2, QString::number(detection.target_id));
+            // Only show detections within the semicircle range
+            if (detection.azimuth >= -90 && detection.azimuth <= 90) {
+                // Calculate position
+                double normalizedRadius = qMin(detection.radius / 100.0, 1.0); // Normalize to 0-100m
+                double rad = detection.azimuth * M_PI / 180.0;
+                
+                int x = center.x() + normalizedRadius * maxRadius * cos(rad);
+                int y = center.y() - normalizedRadius * maxRadius * sin(rad);
+                
+                // Color based on radial speed
+                QColor color = getColorForSpeed(detection.radial_speed);
+                
+                // Size based on amplitude, with minimum size for visibility
+                int size = qMax(8, qMin(20, (int)(detection.amplitude / 5.0 + 8)));
+                painter.setPen(QPen(color, 2));
+                painter.setBrush(QBrush(color));
+                painter.drawEllipse(x - size/2, y - size/2, size, size);
+                
+                // Draw target ID
+                painter.setPen(Qt::white);
+                painter.drawText(x + size/2 + 2, y - size/2 - 2, QString::number(detection.target_id));
+            }
         }
     }
     
@@ -406,7 +472,12 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     painter.setPen(Qt::white);
     painter.setFont(QFont("Arial", 10));
     painter.drawText(10, 20, "Detection Plot");
-    painter.drawText(10, 35, "Range vs Azimuth");
+    painter.drawText(10, 35, "Range vs Azimuth (-90° to +90°)");
+    
+    // Draw zoom level indicator
+    painter.setPen(Qt::white);
+    painter.setFont(QFont("Arial", 8));
+    painter.drawText(10, height() - 20, QString("Zoom: %1x").arg(zoomLevel, 0, 'f', 1));
 }
 
 void CustomChart::drawHistogramChart(QPainter& painter)
@@ -463,8 +534,16 @@ TargetDetection CustomChart::getDetectionAt(const QPoint& point) const
 
 QPoint CustomChart::detectionToPoint(const TargetDetection& detection) const
 {
-    QPoint center = plotArea.center();
-    int maxRadius = qMin(plotArea.width(), plotArea.height()) / 2 - 20;
+    QPoint center = QPoint(plotArea.center().x(), plotArea.bottom() - 20);
+    int maxRadius = (qMin(plotArea.width(), plotArea.height()) * zoomLevel) / 2 - 20;
+    
+    // Ensure semicircle fits within the plot area
+    if (maxRadius > plotArea.height() - 40) {
+        maxRadius = plotArea.height() - 40;
+    }
+    if (maxRadius > plotArea.width() / 2 - 40) {
+        maxRadius = plotArea.width() / 2 - 40;
+    }
     
     double normalizedRadius = qMin(detection.radius / 100.0, 1.0);
     double rad = detection.azimuth * M_PI / 180.0;
