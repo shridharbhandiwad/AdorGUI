@@ -73,7 +73,7 @@ bool UdpHandler::connectToHost(const QString& host, int port)
     // Reset statistics
     resetStatistics();
 
-    qDebug() << "UDP Handler connected to" << host << ":" << port;
+    //qDebug() << "UDP Handler connected to" << host << ":" << port;
     emit connectionStatusChanged(true);
 
     return true;
@@ -135,12 +135,12 @@ void UdpHandler::readPendingDatagrams()
             QByteArray data = datagram.data();
 
             if (parseDetectionData(data)) {
-                qDebug()<<packetsReceived<<"\n";
+                //qDebug()<<packetsReceived<<"\n";
                 packetsReceived++;
                 lastPacketTime = QDateTime::currentMSecsSinceEpoch();
             } else {
                 packetsDropped++;
-                qDebug() << "Failed to parse UDP packet from" << datagram.senderAddress().toString();
+                //qDebug() << "Failed to parse UDP packet from" << datagram.senderAddress().toString();
             }
         }
     }
@@ -170,9 +170,9 @@ bool UdpHandler::parseDetectionData(const QString& data)
 //        }
 
 //    } catch (const std::exception& e) {
-//        qDebug() << "Exception parsing detection data:" << e.what();
+//        //qDebug() << "Exception parsing detection data:" << e.what();
 //    } catch (...) {
-//        qDebug() << "Unknown exception parsing detection data";
+//        //qDebug() << "Unknown exception parsing detection data";
 //    }
 
 //    return false;
@@ -181,11 +181,12 @@ bool UdpHandler::parseDetectionData(const QString& data)
 
     //QVector<DetectionData> targets;
     DetectionData targets;
-
+    //qDebug()<<"lines "<<lines;
     for (const QString &line : lines) {
-        if (!line.contains("NumTargets:")) continue;
+        //if (!line.contains("NumTargets:")) continue;
 
         QStringList parts = line.split(" ", QString::SkipEmptyParts);
+        //qDebug()<<"parts "<<parts.size();
         TargetDetection target;
         for (int i = 0; i < parts.size(); ++i) {
             if (parts[i] == "TgtId:" && i + 1 < parts.size())
@@ -194,11 +195,11 @@ bool UdpHandler::parseDetectionData(const QString& data)
                 targets.radius = parts[i + 1].toFloat();
             if (parts[i] == "Speed:" && i + 1 < parts.size())
                 targets.radial_speed = parts[i + 1].toFloat();
-            if (parts[i] == "Azimuth:" && i + 1 < parts.size())
+            if (parts[i] == "azimuth:" && i + 1 < parts.size())
                 targets.azimuth = parts[i + 1].toFloat();
-            if (parts[i] == "Amplitude:" && i + 1 < parts.size())
+            if (parts[i] == "amplitude:" && i + 1 < parts.size())
                 targets.amplitude = parts[i + 1].toFloat();
-            if (parts[i] == "Timestamp:" && i + 1 < parts.size())
+            if (parts[i] == "timestamp:" && i + 1 < parts.size())
                 targets.timestamp = parts[i + 1].toInt();
         }
        // targets.append(target);
@@ -285,8 +286,9 @@ bool UdpHandler::parseCsvData(const QString& csvData)
 
             //detection.amplitude = parts.size() > 4 ? parts[4].toDouble() : 0.0;
             //detection.timestamp = QDateTime::currentMSecsSinceEpoch();
-
+            //qDebug()<<"before adding";
             if (isValidDetection(detection)) {
+                //qDebug()<<"adding";
                 addDetection(detection);
                 parsedAny = true;
             }
@@ -298,7 +300,9 @@ bool UdpHandler::parseCsvData(const QString& csvData)
 
 void UdpHandler::addDetection(const DetectionData& detection)
 {
+    //qDebug()<<"Added";
     QMutexLocker locker(&detectionsMutex);
+    qDebug()<<detection.radius<<"\n";
 
     detections.push_back(detection);
 

@@ -462,6 +462,7 @@ void MainWindow::updateStatus()
 
 void MainWindow::processDetection(const DetectionData& detection)
 {
+    //qDebug()<<"processDetection";
     // Add to recent detections
     recentDetections.push_back(detection);
     if (recentDetections.size() > MAX_RECENT_DETECTIONS) {

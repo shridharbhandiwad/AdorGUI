@@ -129,6 +129,7 @@ void UdpConfigDialog::onConnectionStatusChanged(bool connected)
 
 void UdpConfigDialog::onNewDetectionReceived(const DetectionData& detection)
 {
+    //qDebug()<<"onNewDetectionReceived";
     emit dataReceived(detection);
 }
 

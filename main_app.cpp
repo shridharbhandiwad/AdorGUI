@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     darkPalette.setColor(QPalette::HighlightedText, Qt::black);
     app.setPalette(darkPalette);
     
-    qDebug() << "Starting Zoppler Radar Sensor GUI v1.1";
+    //qDebug() << "Starting Zoppler Radar Sensor GUI v1.1";
     
     // Create and show main window
     MainWindow window;
