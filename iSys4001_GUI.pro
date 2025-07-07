@@ -25,6 +25,12 @@ SOURCES += \
     targetlist.cpp \
     udphandler.cpp
 
+# Resources
+RESOURCES += resources.qrc
+
+# Other files for distribution
+OTHER_FILES += styles.qss
+
 # Windows-specific configuration
 win32 {
     LIBS += -lws2_32 -lwsock32

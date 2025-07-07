@@ -57,7 +57,8 @@ SOURCES       = main_app.cpp \
 		customchart.cpp \
 		dialogs.cpp \
 		targetlist.cpp \
-		udphandler.cpp moc_mainwindow.cpp \
+		udphandler.cpp qrc_resources.cpp \
+		moc_mainwindow.cpp \
 		moc_customchart.cpp \
 		moc_dialogs.cpp \
 		moc_targetlist.cpp \
@@ -68,6 +69,7 @@ OBJECTS       = main_app.o \
 		dialogs.o \
 		targetlist.o \
 		udphandler.o \
+		qrc_resources.o \
 		moc_mainwindow.o \
 		moc_customchart.o \
 		moc_dialogs.o \
@@ -251,7 +253,8 @@ Makefile: iSys4001_GUI.pro /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++/qmake
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/exceptions.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/yacc.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/lex.prf \
-		iSys4001_GUI.pro
+		iSys4001_GUI.pro \
+		resources.qrc
 	$(QMAKE) -o Makefile iSys4001_GUI.pro
 /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf:
 /usr/lib/x86_64-linux-gnu/qt5/mkspecs/common/unix.conf:
@@ -331,6 +334,7 @@ Makefile: iSys4001_GUI.pro /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++/qmake
 /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/yacc.prf:
 /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/lex.prf:
 iSys4001_GUI.pro:
+resources.qrc:
 qmake: FORCE
 	@$(QMAKE) -o Makefile iSys4001_GUI.pro
 
@@ -345,6 +349,7 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
+	$(COPY_FILE) --parents resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/data/dummy.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents structures.h isys4001_gui.h mainwindow.h customchart.h dialogs.h targetlist.h udphandler.h $(DISTDIR)/
 	$(COPY_FILE) --parents main_app.cpp mainwindow_basic.cpp customchart.cpp dialogs.cpp targetlist.cpp udphandler.cpp $(DISTDIR)/
@@ -375,8 +380,14 @@ check: first
 
 benchmark: first
 
-compiler_rcc_make_all:
+compiler_rcc_make_all: qrc_resources.cpp
 compiler_rcc_clean:
+	-$(DEL_FILE) qrc_resources.cpp
+qrc_resources.cpp: resources.qrc \
+		/usr/lib/qt5/bin/rcc \
+		styles.qss
+	/usr/lib/qt5/bin/rcc -name resources resources.qrc -o qrc_resources.cpp
+
 compiler_moc_predefs_make_all: moc_predefs.h
 compiler_moc_predefs_clean:
 	-$(DEL_FILE) moc_predefs.h
@@ -433,7 +444,7 @@ compiler_yacc_impl_make_all:
 compiler_yacc_impl_clean:
 compiler_lex_make_all:
 compiler_lex_clean:
-compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean 
+compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_header_clean 
 
 ####### Compile
 
@@ -469,6 +480,9 @@ targetlist.o: targetlist.cpp targetlist.h \
 udphandler.o: udphandler.cpp udphandler.h \
 		structures.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o udphandler.o udphandler.cpp
+
+qrc_resources.o: qrc_resources.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o qrc_resources.o qrc_resources.cpp
 
 moc_mainwindow.o: moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_mainwindow.o moc_mainwindow.cpp

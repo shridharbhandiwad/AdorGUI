@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <QFile>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -8,6 +9,20 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle("Zoppler Radar Sensor GUI v1.1");
     setMinimumSize(1000, 700);
+    
+    // Apply rich modern stylesheet
+    QFile styleFile(":/styles.qss");
+    if (!styleFile.open(QFile::ReadOnly)) {
+        // Try loading from current directory if resource fails
+        styleFile.setFileName("styles.qss");
+        styleFile.open(QFile::ReadOnly);
+    }
+    
+    if (styleFile.isOpen()) {
+        QString style = QLatin1String(styleFile.readAll());
+        setStyleSheet(style);
+        styleFile.close();
+    }
     
     setupMenuBar();
     setupUI();
