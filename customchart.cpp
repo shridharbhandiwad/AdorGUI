@@ -409,7 +409,7 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     
     // Draw azimuth lines from -90 to +90 degrees
     painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
-    for (int angle = -90; angle <= 90; angle += 15) {
+    for (int angle = 0; angle <= 180; angle += 15) {
         double rad = angle * M_PI / 180.0;
         int x = center.x() + maxRadius * cos(rad);
         int y = center.y() - maxRadius * sin(rad);
@@ -433,11 +433,11 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     // Draw azimuth angle labels
     painter.setPen(Qt::white);
     painter.setFont(QFont("Arial", 8));
-    for (int angle = -90; angle <= 90; angle += 30) {
+    for (int angle = 0; angle <= 180; angle += 30) {
         double rad = angle * M_PI / 180.0;
         int x = center.x() + (maxRadius + 15) * cos(rad);
         int y = center.y() - (maxRadius + 15) * sin(rad);
-        painter.drawText(x - 10, y + 5, QString("%1°").arg(angle));
+        painter.drawText(x - 10, y + 5, QString("%1°").arg(angle-90));
     }
     
     // Draw detections (only show detections within -90 to +90 degree range)
