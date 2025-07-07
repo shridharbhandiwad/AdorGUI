@@ -214,14 +214,18 @@ void CustomChart::updateData()
 
 void CustomChart::drawBackground(QPainter& painter)
 {
-    painter.fillRect(rect(), Qt::black);
+    // Use a light gradient background for rich look
+    QLinearGradient gradient(rect().topLeft(), rect().bottomRight());
+    gradient.setColorAt(0, QColor(245, 250, 255));  // Very light blue
+    gradient.setColorAt(1, QColor(230, 240, 250));  // Slightly darker light blue
+    painter.fillRect(rect(), QBrush(gradient));
 }
 
 void CustomChart::drawGrid(QPainter& painter)
 {
     if (!showGrid) return;
     
-    painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
+    painter.setPen(QPen(QColor(100, 149, 237), 1, Qt::DotLine));  // Cornflower blue grid
     
     // Vertical grid lines
     for (int i = 0; i <= 10; ++i) {
@@ -238,14 +242,14 @@ void CustomChart::drawGrid(QPainter& painter)
 
 void CustomChart::drawAxes(QPainter& painter)
 {
-    painter.setPen(QPen(Qt::white, 2));
+    painter.setPen(QPen(QColor(25, 25, 112), 2));  // Midnight blue axes
     painter.drawLine(plotArea.bottomLeft(), plotArea.bottomRight());
     painter.drawLine(plotArea.bottomLeft(), plotArea.topLeft());
 }
 
 void CustomChart::drawLegend(QPainter& painter)
 {
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue text
     painter.setFont(QFont("Arial", 8));
     
     int legendY = plotArea.top() + 10;
@@ -254,17 +258,17 @@ void CustomChart::drawLegend(QPainter& painter)
     switch (chartType) {
     case FFT_CHART:
         painter.drawText(legendX, legendY, "FFT Signal");
-        painter.setPen(Qt::green);
+        painter.setPen(QColor(34, 139, 34));  // Forest green
         painter.drawLine(legendX - 20, legendY - 5, legendX - 5, legendY - 5);
         
-        painter.setPen(Qt::white);
+        painter.setPen(QColor(25, 25, 112));
         painter.drawText(legendX, legendY + 15, "Threshold");
-        painter.setPen(Qt::yellow);
+        painter.setPen(QColor(255, 140, 0));  // Dark orange
         painter.drawLine(legendX - 20, legendY + 10, legendX - 5, legendY + 10);
         break;
         
     case DETECTION_CHART:
-        painter.setPen(Qt::white);
+        painter.setPen(QColor(25, 25, 112));
         painter.drawText(legendX, legendY, "Red: Approaching");
         painter.drawText(legendX, legendY + 15, "Green: Receding");
         painter.drawText(legendX, legendY + 30, "Yellow: Stationary");
@@ -323,13 +327,13 @@ void CustomChart::drawFFTChart(QPainter& painter)
     drawAxes(painter);
     
     // Draw labels
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 10));
     painter.drawText(10, plotArea.center().y(), "Amplitude (dB)");
     painter.drawText(plotArea.center().x() - 30, height() - 10, "Frequency (Hz)");
     
     // Draw threshold line
-    painter.setPen(QPen(Qt::yellow, 2));
+    painter.setPen(QPen(QColor(255, 140, 0), 2));  // Dark orange
     if (!thresholdData.empty()) {
         QPolygon thresholdPoly;
         for (size_t i = 0; i < thresholdData.size(); ++i) {
@@ -341,7 +345,7 @@ void CustomChart::drawFFTChart(QPainter& painter)
     }
     
     // Draw FFT data
-    painter.setPen(QPen(Qt::green, 2));
+    painter.setPen(QPen(QColor(34, 139, 34), 2));  // Forest green
     QPolygon fftPoly;
     for (size_t i = 0; i < fftData.size(); ++i) {
         int x = plotArea.left() + i * plotArea.width() / (fftData.size() - 1);
@@ -362,11 +366,11 @@ void CustomChart::drawRawSignalChart(QPainter& painter)
     
     // Draw zero line
     int zeroY = plotArea.bottom() - plotArea.height() / 2;
-    painter.setPen(QPen(Qt::gray, 1));
+    painter.setPen(QPen(QColor(128, 128, 128), 1));  // Gray
     painter.drawLine(plotArea.left(), zeroY, plotArea.right(), zeroY);
     
     // Draw raw signal data
-    painter.setPen(QPen(Qt::cyan, 2));
+    painter.setPen(QPen(QColor(0, 191, 255), 2));  // Deep sky blue
     QPolygon signalPoly;
     for (size_t i = 0; i < rawSignalData.size(); ++i) {
         int x = plotArea.left() + i * plotArea.width() / (rawSignalData.size() - 1);
@@ -376,7 +380,7 @@ void CustomChart::drawRawSignalChart(QPainter& painter)
     painter.drawPolyline(signalPoly);
     
     // Draw labels
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 10));
     painter.drawText(10, plotArea.center().y(), "Amplitude");
     painter.drawText(plotArea.center().x() - 20, height() - 10, "Samples");
@@ -401,14 +405,14 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     }
     
     // Draw range circles (semicircles from -90 to +90 degrees)
-    painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
+    painter.setPen(QPen(QColor(128, 128, 128), 1, Qt::DotLine));  // Gray dotted lines
     for (int i = 1; i <= 5; ++i) {
         int r = maxRadius * i / 5;
         painter.drawArc(center.x() - r, center.y() - r, 2 * r, 2 * r, 0, 180 * 16); // 180 degrees in 16th of a degree
     }
     
     // Draw azimuth lines from -90 to +90 degrees
-    painter.setPen(QPen(Qt::darkGray, 1, Qt::DotLine));
+    painter.setPen(QPen(QColor(128, 128, 128), 1, Qt::DotLine));  // Gray dotted lines
     for (int angle = 0; angle <= 180; angle += 15) {
         double rad = angle * M_PI / 180.0;
         int x = center.x() + maxRadius * cos(rad);
@@ -417,12 +421,12 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     }
     
     // Draw main axes (horizontal baseline and vertical 0-degree line)
-    painter.setPen(QPen(Qt::white, 2));
+    painter.setPen(QPen(QColor(25, 25, 112), 2));  // Midnight blue axes
     painter.drawLine(center.x() - maxRadius, center.y(), center.x() + maxRadius, center.y()); // Horizontal baseline
     painter.drawLine(center.x(), center.y(), center.x(), center.y() - maxRadius); // Vertical 0-degree line
     
     // Draw range labels
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 8));
     for (int i = 1; i <= 5; ++i) {
         int r = maxRadius * i / 5;
@@ -431,7 +435,7 @@ void CustomChart::drawDetectionChart(QPainter& painter)
     }
     
     // Draw azimuth angle labels
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 8));
     for (int angle = 0; angle <= 180; angle += 30) {
         double rad = angle * M_PI / 180.0;
@@ -462,20 +466,20 @@ void CustomChart::drawDetectionChart(QPainter& painter)
                 painter.drawEllipse(x - size/2, y - size/2, size, size);
                 
                 // Draw target ID
-                painter.setPen(Qt::white);
+                painter.setPen(QColor(25, 25, 112));  // Midnight blue
                 painter.drawText(x + size/2 + 2, y - size/2 - 2, QString::number(detection.target_id));
             }
         }
     }
     
     // Draw labels
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 10));
     painter.drawText(10, 20, "Detection Plot");
     painter.drawText(10, 35, "Range vs Azimuth (-90° to +90°)");
     
     // Draw zoom level indicator
-    painter.setPen(Qt::white);
+    painter.setPen(QColor(25, 25, 112));  // Midnight blue
     painter.setFont(QFont("Arial", 8));
     painter.drawText(10, height() - 20, QString("Zoom: %1x").arg(zoomLevel, 0, 'f', 1));
 }

@@ -19,22 +19,22 @@ int main(int argc, char *argv[])
     // Set application style
     app.setStyle("Fusion");
     
-    // Dark theme
-    QPalette darkPalette;
-    darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::WindowText, Qt::white);
-    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
-    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::ToolTipBase, Qt::white);
-    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
-    darkPalette.setColor(QPalette::Text, Qt::white);
-    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::ButtonText, Qt::white);
-    darkPalette.setColor(QPalette::BrightText, Qt::red);
-    darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
-    app.setPalette(darkPalette);
+    // Set up application-wide styling for a rich look with lighter colors
+    QPalette lightPalette;
+    lightPalette.setColor(QPalette::Window, QColor(240, 248, 255));        // Alice blue background
+    lightPalette.setColor(QPalette::WindowText, QColor(25, 25, 112));      // Midnight blue text
+    lightPalette.setColor(QPalette::Base, QColor(255, 255, 255));          // White base
+    lightPalette.setColor(QPalette::AlternateBase, QColor(230, 230, 250)); // Lavender alternate
+    lightPalette.setColor(QPalette::ToolTipBase, QColor(255, 255, 220));   // Light yellow tooltip
+    lightPalette.setColor(QPalette::ToolTipText, QColor(0, 0, 0));         // Black tooltip text
+    lightPalette.setColor(QPalette::Text, QColor(25, 25, 112));            // Midnight blue text
+    lightPalette.setColor(QPalette::Button, QColor(220, 220, 220));        // Light gray button
+    lightPalette.setColor(QPalette::ButtonText, QColor(25, 25, 112));      // Midnight blue button text
+    lightPalette.setColor(QPalette::BrightText, QColor(220, 20, 60));      // Crimson bright text
+    lightPalette.setColor(QPalette::Link, QColor(65, 105, 225));           // Royal blue link
+    lightPalette.setColor(QPalette::Highlight, QColor(135, 206, 250));     // Sky blue highlight
+    lightPalette.setColor(QPalette::HighlightedText, QColor(0, 0, 0));     // Black highlighted text
+    app.setPalette(lightPalette);
     
     //qDebug() << "Starting Zoppler Radar Sensor GUI v1.1";
     
