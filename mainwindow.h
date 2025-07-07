@@ -20,6 +20,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTimer>
+#include <QTableWidget>
+#include <QMutex>
 #include <memory>
 
 #include "structures.h"
@@ -65,6 +67,7 @@ private slots:
     void onUdpStatisticsUpdated(int received, int dropped, double rate);
     void onTargetSelected(const TargetDetection& target);
     void onChartDetectionClicked(const TargetDetection& target);
+    void onTrackTableSelectionChanged();
     
     // Chart updates
     void updateChartsWithDetections();
@@ -125,6 +128,9 @@ private:
     // Zoom controls
     QLabel* zoomLevelLabel;
     
+    // Track table for detection tab
+    QTableWidget* trackTable;
+    
     // Target lists
     std::vector<TargetListWidget*> targetLists;
     
@@ -141,6 +147,7 @@ private:
     
     // Data management
     std::vector<DetectionData> recentDetections;
+    mutable QMutex recentDetectionsMutex;
     QTimer* updateTimer;
     
     // State
@@ -167,6 +174,7 @@ private:
     void updateConnectionStatus(bool connected);
     void updateDataRate(double rate);
     void updateTargetCount(int count);
+    void updateTrackTable();
     void showDetectionInChart(const DetectionData& detection);
     void highlightTargetInChart(const TargetDetection& target);
     

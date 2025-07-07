@@ -89,10 +89,13 @@ void MainWindow::setupUI()
     mainTabs->addTab(detectionWidget, "Detection");
     
     // Output tabs
+    // COMMENTED OUT - Output tabs not required as of now
+    /*
     for (int i = 1; i <= 3; ++i) {
         QWidget* outputWidget = createOutputTab(i);
         mainTabs->addTab(outputWidget, QString("Output %1").arg(i));
     }
+    */
     
     leftLayout->addWidget(mainTabs);
     
@@ -119,9 +122,9 @@ void MainWindow::setupUI()
     
     leftLayout->addWidget(configGroup);
     
-    mainSplitter->addWidget(leftWidget);
-    
     // Right side - Target information
+    // COMMENTED OUT - Output target lists not required as of now
+    /*
     QWidget* rightWidget = new QWidget();
     QVBoxLayout* rightLayout = new QVBoxLayout(rightWidget);
     
@@ -139,32 +142,36 @@ void MainWindow::setupUI()
     
     rightLayout->addStretch();
     
+    mainSplitter->addWidget(leftWidget);
     mainSplitter->addWidget(rightWidget);
     mainSplitter->setSizes({700, 300});
     
+    mainLayout->addWidget(mainSplitter);
+    */
+    
+    // Since right widget is commented out, just use the left widget as main content
+    // No splitter needed anymore, just use full width for left widget
+    mainSplitter->addWidget(leftWidget);
     mainLayout->addWidget(mainSplitter);
 }
 
 QWidget* MainWindow::createDetectionTab()
 {
     QWidget* detectionWidget = new QWidget();
-    QVBoxLayout* detectionLayout = new QVBoxLayout(detectionWidget);
+    QHBoxLayout* detectionLayout = new QHBoxLayout(detectionWidget);  // Changed to horizontal layout
     
-    // Create a splitter to show both FFT and detection charts
-    QSplitter* splitter = new QSplitter(Qt::Vertical);
+    // Left side - Detection Chart (Azimuth vs Range plot) - Keep full size
+    QWidget* chartWidget = new QWidget();
+    QVBoxLayout* chartLayout = new QVBoxLayout(chartWidget);
     
-    // FFT Chart for frequency analysis
+    // FFT Chart for frequency analysis (smaller size)
     fftChart = new CustomChart(CustomChart::FFT_CHART);
-    splitter->addWidget(fftChart);
+    fftChart->setMaximumHeight(150);  // Limit FFT chart height
+    chartLayout->addWidget(fftChart);
     
-    // Detection Chart for showing detected targets on polar plot
+    // Detection Chart for showing detected targets on polar plot - Full size
     detectionChart = new CustomChart(CustomChart::DETECTION_CHART);
-    splitter->addWidget(detectionChart);
-    
-    // Set sizes - give more space to the detection chart
-    splitter->setSizes({1, 2});
-    
-    detectionLayout->addWidget(splitter);
+    chartLayout->addWidget(detectionChart);
     
     // Zoom controls for detection chart
     QGroupBox* zoomGroup = new QGroupBox("Range vs Azimuth Plot Controls");
@@ -188,9 +195,40 @@ QWidget* MainWindow::createDetectionTab()
     connect(resetZoomBtn, &QPushButton::clicked, detectionChart, &CustomChart::resetZoom);
     connect(detectionChart, &CustomChart::zoomChanged, this, &MainWindow::onZoomChanged);
     
-    detectionLayout->addWidget(zoomGroup);
+    chartLayout->addWidget(zoomGroup);
+    detectionLayout->addWidget(chartWidget, 3);  // Give more space to chart
+    
+    // Right side - Track Table and Controls
+    QWidget* controlWidget = new QWidget();
+    QVBoxLayout* controlLayout = new QVBoxLayout(controlWidget);
+    
+    // Track Table
+    QGroupBox* trackGroup = new QGroupBox("Track Table");
+    QVBoxLayout* trackLayout = new QVBoxLayout(trackGroup);
+    
+    // Create track table
+    trackTable = new QTableWidget();
+    trackTable->setColumnCount(4);
+    QStringList headers = {"Track ID", "Radius (m)", "Radial Speed (m/s)", "Azimuth (°)"};
+    trackTable->setHorizontalHeaderLabels(headers);
+    trackTable->setAlternatingRowColors(true);
+    trackTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    trackTable->setSortingEnabled(true);
+    trackTable->setMinimumWidth(300);
+    
+    // Set column widths
+    trackTable->setColumnWidth(0, 80);   // Track ID
+    trackTable->setColumnWidth(1, 85);   // Radius
+    trackTable->setColumnWidth(2, 105);  // Radial Speed
+    trackTable->setColumnWidth(3, 85);   // Azimuth
+    
+    trackLayout->addWidget(trackTable);
+    controlLayout->addWidget(trackGroup);
     
     // Threshold control
+    QGroupBox* thresholdGroup = new QGroupBox("Threshold Control");
+    QVBoxLayout* thresholdControlLayout = new QVBoxLayout(thresholdGroup);
+    
     QHBoxLayout* thresholdLayout = new QHBoxLayout();
     thresholdLayout->addWidget(new QLabel("User Threshold:"));
     thresholdSlider = new QSlider(Qt::Horizontal);
@@ -200,8 +238,8 @@ QWidget* MainWindow::createDetectionTab()
     
     thresholdLayout->addWidget(thresholdSlider);
     thresholdLayout->addWidget(thresholdLabel);
-    
-    detectionLayout->addLayout(thresholdLayout);
+    thresholdControlLayout->addLayout(thresholdLayout);
+    controlLayout->addWidget(thresholdGroup);
     
     // Line filter options
     QGroupBox* lineFilterGroup = new QGroupBox("Line Filter");
@@ -216,7 +254,10 @@ QWidget* MainWindow::createDetectionTab()
     lineFilterLayout->addWidget(filter150Hz);
     lineFilterLayout->addStretch();
     
-    detectionLayout->addWidget(lineFilterGroup);
+    controlLayout->addWidget(lineFilterGroup);
+    controlLayout->addStretch();  // Add stretch to push controls to top
+    
+    detectionLayout->addWidget(controlWidget, 1);  // Give less space to controls
     
     return detectionWidget;
 }
@@ -288,8 +329,16 @@ void MainWindow::setupConnections()
     }
     
     // Target lists
+    // COMMENTED OUT - Target lists not used now
+    /*
     for (auto* targetList : targetLists) {
         connect(targetList, &TargetListWidget::targetSelected, this, &MainWindow::onTargetSelected);
+    }
+    */
+    
+    // Track table connections
+    if (trackTable) {
+        connect(trackTable, &QTableWidget::itemSelectionChanged, this, &MainWindow::onTrackTableSelectionChanged);
     }
 }
 
@@ -488,15 +537,20 @@ void MainWindow::processDetection(const DetectionData& detection)
 {
     //qDebug()<<"processDetection";
     // Add to recent detections
-    recentDetections.push_back(detection);
-    if (recentDetections.size() > MAX_RECENT_DETECTIONS) {
-        recentDetections.erase(recentDetections.begin());
+    {
+        QMutexLocker locker(&recentDetectionsMutex);
+        recentDetections.push_back(detection);
+        if (recentDetections.size() > MAX_RECENT_DETECTIONS) {
+            recentDetections.erase(recentDetections.begin());
+        }
     }
     
-    // Update target lists
+    // Update target lists (commented out since output targets are not used now)
+    /*
     for (auto* targetList : targetLists) {
         targetList->onNewDetection(detection);
     }
+    */
     
     // Update charts - Convert DetectionData to TargetDetection
     TargetDetection target = detection.toTargetDetection();
@@ -511,12 +565,17 @@ void MainWindow::processDetection(const DetectionData& detection)
         detectionChart->addDetection(target);
     }
     
-    // Update output charts
+    // Update output charts (commented out since outputs are not used now)
+    /*
     for (auto* chart : outputCharts) {
         if (!frozen) {
             chart->addDetection(target);
         }
     }
+    */
+    
+    // Update track table
+    updateTrackTable();
     
     // Update target count in status bar
     updateTargetCount(static_cast<int>(recentDetections.size()));
@@ -541,6 +600,58 @@ void MainWindow::updateDataRate(double rate)
 void MainWindow::updateTargetCount(int count)
 {
     targetCountLabel->setText(QString("Targets: %1").arg(count));
+}
+
+void MainWindow::updateTrackTable()
+{
+    if (!trackTable) return;
+    
+    // Clear existing rows
+    trackTable->setRowCount(0);
+    
+    // Add recent detections to the table
+    QMutexLocker locker(&recentDetectionsMutex);
+    int row = 0;
+    for (const auto& detection : recentDetections) {
+        // Only show recent detections (last 10 seconds)
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (currentTime - detection.timestamp > 10000) continue;  // Skip old detections
+        
+        trackTable->insertRow(row);
+        
+        // Track ID
+        QTableWidgetItem* idItem = new QTableWidgetItem(QString::number(detection.target_id));
+        idItem->setTextAlignment(Qt::AlignCenter);
+        trackTable->setItem(row, 0, idItem);
+        
+        // Radius
+        QTableWidgetItem* radiusItem = new QTableWidgetItem(QString::number(detection.radius, 'f', 1));
+        radiusItem->setTextAlignment(Qt::AlignCenter);
+        trackTable->setItem(row, 1, radiusItem);
+        
+        // Radial Speed
+        QTableWidgetItem* speedItem = new QTableWidgetItem(QString::number(detection.radial_speed, 'f', 2));
+        speedItem->setTextAlignment(Qt::AlignCenter);
+        // Color code based on speed
+        if (detection.radial_speed > 2.0) {
+            speedItem->setBackground(QBrush(QColor(255, 200, 200))); // Light red for approaching
+        } else if (detection.radial_speed < -2.0) {
+            speedItem->setBackground(QBrush(QColor(200, 255, 200))); // Light green for receding
+        } else {
+            speedItem->setBackground(QBrush(QColor(255, 255, 200))); // Light yellow for stationary
+        }
+        trackTable->setItem(row, 2, speedItem);
+        
+        // Azimuth
+        QTableWidgetItem* azimuthItem = new QTableWidgetItem(QString::number(detection.azimuth, 'f', 1));
+        azimuthItem->setTextAlignment(Qt::AlignCenter);
+        trackTable->setItem(row, 3, azimuthItem);
+        
+        row++;
+    }
+    
+    // Auto-resize columns to content
+    trackTable->resizeColumnsToContents();
 }
 
 void MainWindow::onZoomChanged(double zoomLevel)
@@ -613,4 +724,39 @@ void MainWindow::updateDetectionCharts()
 void MainWindow::updateTargetLists()
 {
     // Implementation for updating target lists
+}
+
+void MainWindow::onTrackTableSelectionChanged()
+{
+    if (!trackTable) return;
+    
+    QList<QTableWidgetItem*> selectedItems = trackTable->selectedItems();
+    if (selectedItems.isEmpty()) return;
+    
+    // Get the selected row
+    int row = selectedItems.first()->row();
+    
+    // Get the track ID from the selected row
+    QTableWidgetItem* idItem = trackTable->item(row, 0);
+    if (!idItem) return;
+    
+    uint32_t selectedTrackId = idItem->text().toUInt();
+    
+    // Find the corresponding detection and highlight it
+    QMutexLocker locker(&recentDetectionsMutex);
+    for (const auto& detection : recentDetections) {
+        if (detection.target_id == selectedTrackId) {
+            // Create a TargetDetection from DetectionData for highlighting
+            TargetDetection target;
+            target.target_id = detection.target_id;
+            target.radius = detection.radius;
+            target.radial_speed = detection.radial_speed;
+            target.azimuth = detection.azimuth;
+            target.amplitude = detection.amplitude;
+            target.timestamp = detection.timestamp;
+            
+            highlightTargetInChart(target);
+            break;
+        }
+    }
 }

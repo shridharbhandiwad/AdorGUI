@@ -39,17 +39,17 @@ void TargetListWidget::setupUI()
 
     // Status indicator
     statusButton = new QPushButton("No Object Detected");
-    statusButton->setStyleSheet("QPushButton { background-color: orange; color: black; font-weight: bold; }");
+    statusButton->setStyleSheet("QPushButton { background-color: #FFE4B5; color: #8B4513; font-weight: bold; border: 1px solid #D2691E; }");  // Moccasin background
     statusButton->setEnabled(false);
     layout->addWidget(statusButton);
 
     // Count and statistics labels
     countLabel = new QLabel("Targets: 0");
-    countLabel->setStyleSheet("QLabel { font-weight: bold; }");
+    countLabel->setStyleSheet("QLabel { font-weight: bold; color: #191970; }");  // Midnight blue
     layout->addWidget(countLabel);
 
     statisticsLabel = new QLabel("Total received: 0");
-    statisticsLabel->setStyleSheet("QLabel { color: gray; font-size: 10px; }");
+    statisticsLabel->setStyleSheet("QLabel { color: #708090; font-size: 10px; }");  // Slate gray
     layout->addWidget(statisticsLabel);
 
     // Target list
@@ -232,19 +232,19 @@ void TargetListWidget::updateStatusButton()
 {
     if (targets.empty()) {
         statusButton->setText("No Object Detected");
-        statusButton->setStyleSheet("QPushButton { background-color: orange; color: black; font-weight: bold; }");
+        statusButton->setStyleSheet("QPushButton { background-color: #FFE4B5; color: #8B4513; font-weight: bold; border: 1px solid #D2691E; }");  // Moccasin background
     } else {
         const auto& latest = targets.back();
 
         if (latest.radial_speed > 2.0) {
             statusButton->setText("Object Approaching");
-            statusButton->setStyleSheet("QPushButton { background-color: red; color: white; font-weight: bold; }");
+            statusButton->setStyleSheet("QPushButton { background-color: #FFB6C1; color: #8B0000; font-weight: bold; border: 1px solid #DC143C; }");  // Light pink with dark red text
         } else if (latest.radial_speed < -2.0) {
             statusButton->setText("Object Receding");
-            statusButton->setStyleSheet("QPushButton { background-color: green; color: white; font-weight: bold; }");
+            statusButton->setStyleSheet("QPushButton { background-color: #98FB98; color: #006400; font-weight: bold; border: 1px solid #228B22; }");  // Pale green with dark green text
         } else {
             statusButton->setText("Object Detected");
-            statusButton->setStyleSheet("QPushButton { background-color: yellow; color: black; font-weight: bold; }");
+            statusButton->setStyleSheet("QPushButton { background-color: #FFFFE0; color: #B8860B; font-weight: bold; border: 1px solid #DAA520; }");  // Light yellow with dark goldenrod text
         }
     }
 }
