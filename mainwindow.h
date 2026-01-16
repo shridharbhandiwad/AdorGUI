@@ -80,6 +80,7 @@ private slots:
     // DSP Settings
     void onSendDSPSettings(const DSP_Settings_t& settings);
     void onDSPSettingsSent(bool success);
+    void applyDSPSettingsFromUI();
 
 private:
     // UI Setup
@@ -129,6 +130,58 @@ private:
     QCheckBox* filter50Hz;
     QCheckBox* filter100Hz;
     QCheckBox* filter150Hz;
+    
+    // DSP Control Line Edits (Radar Settings)
+    // Detection threshold settings
+    QLineEdit* dspDetectionThresholdEdit;
+    QLineEdit* dspCfarThresholdEdit;
+    
+    // Range settings
+    QLineEdit* dspRangeMinEdit;
+    QLineEdit* dspRangeMaxEdit;
+    
+    // Speed settings
+    QLineEdit* dspSpeedMinEdit;
+    QLineEdit* dspSpeedMaxEdit;
+    
+    // FFT settings
+    QLineEdit* dspFftSizeEdit;
+    QLineEdit* dspFftWindowTypeEdit;
+    QLineEdit* dspFftAveragingEdit;
+    
+    // Filter settings
+    QLineEdit* dspFilterEnabledEdit;
+    QLineEdit* dspMovingAvgEnabledEdit;
+    QLineEdit* dspMovingAvgWindowEdit;
+    
+    // Line filter settings
+    QLineEdit* dspLineFilter50HzEdit;
+    QLineEdit* dspLineFilter100HzEdit;
+    QLineEdit* dspLineFilter150HzEdit;
+    
+    // Amplification settings
+    QLineEdit* dspAmplificationEdit;
+    QLineEdit* dspAutoAmplificationEdit;
+    QLineEdit* dspAutoAmpInnerThresholdEdit;
+    QLineEdit* dspAutoAmpOuterThresholdEdit;
+    
+    // Target selection settings
+    QLineEdit* dspTargetSelectionModeEdit;
+    QLineEdit* dspMaxTargetsEdit;
+    QLineEdit* dspDirectionFilterEdit;
+    
+    // Signal processing settings
+    QLineEdit* dspNoiseFloorTrackingEdit;
+    QLineEdit* dspClutterRemovalEdit;
+    QLineEdit* dspDopplerCompensationEdit;
+    
+    // Azimuth settings
+    QLineEdit* dspAzimuthOffsetEdit;
+    QLineEdit* dspAzimuthMinEdit;
+    QLineEdit* dspAzimuthMaxEdit;
+    
+    // Apply DSP Settings button
+    QPushButton* applyDSPSettingsButton;
     
     // Zoom controls
     QLabel* zoomLevelLabel;
@@ -183,6 +236,11 @@ private:
     void updateTrackTable();
     void showDetectionInChart(const DetectionData& detection);
     void highlightTargetInChart(const TargetDetection& target);
+    
+    // DSP Settings UI helpers
+    void setupDSPControlsUI(QVBoxLayout* parentLayout);
+    DSP_Settings_t collectDSPSettingsFromUI() const;
+    void populateDSPControlsWithDefaults();
     
     // Constants
     static constexpr int UPDATE_INTERVAL_MS = 100;
