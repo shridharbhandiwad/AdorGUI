@@ -17,7 +17,9 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QFont>
+#include <QSlider>
 #include <memory>
+#include "structures.h"
 #include "udphandler.h"
 
 // Forward declarations
@@ -240,6 +242,102 @@ private:
     QCheckBox* showHistogramCheckBox;
     
     void setupUI();
+};
+
+// Forward declaration for DSP Settings
+struct DSP_Settings_t;
+
+// DSP Settings Dialog
+class DSPSettingsDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit DSPSettingsDialog(QWidget* parent = nullptr);
+    ~DSPSettingsDialog();
+    
+    DSP_Settings_t getSettings() const;
+    void setSettings(const DSP_Settings_t& settings);
+
+signals:
+    void settingsChanged(const DSP_Settings_t& settings);
+    void sendSettingsRequested(const DSP_Settings_t& settings);
+
+private slots:
+    void onApplyClicked();
+    void onSendClicked();
+    void onLoadDefaultsClicked();
+    void updateUIFromSettings();
+
+private:
+    // Detection threshold settings
+    QSpinBox* detectionThresholdSpinBox;
+    QSpinBox* cfarThresholdSpinBox;
+    
+    // Range settings
+    QDoubleSpinBox* rangeMinSpinBox;
+    QDoubleSpinBox* rangeMaxSpinBox;
+    
+    // Speed settings
+    QDoubleSpinBox* speedMinSpinBox;
+    QDoubleSpinBox* speedMaxSpinBox;
+    
+    // FFT settings
+    QComboBox* fftSizeCombo;
+    QComboBox* fftWindowTypeCombo;
+    QSpinBox* fftAveragingSpinBox;
+    
+    // Filter settings
+    QCheckBox* filterEnabledCheckBox;
+    QCheckBox* movingAvgEnabledCheckBox;
+    QSpinBox* movingAvgWindowSpinBox;
+    
+    // Line filter settings
+    QCheckBox* lineFilter50HzCheckBox;
+    QCheckBox* lineFilter100HzCheckBox;
+    QCheckBox* lineFilter150HzCheckBox;
+    
+    // Amplification settings
+    QSlider* amplificationSlider;
+    QLabel* amplificationLabel;
+    QCheckBox* autoAmplificationCheckBox;
+    QSpinBox* autoAmpInnerThresholdSpinBox;
+    QSpinBox* autoAmpOuterThresholdSpinBox;
+    
+    // Target selection settings
+    QComboBox* targetSelectionModeCombo;
+    QSpinBox* maxTargetsSpinBox;
+    QComboBox* directionFilterCombo;
+    
+    // Signal processing settings
+    QCheckBox* noiseFloorTrackingCheckBox;
+    QCheckBox* clutterRemovalCheckBox;
+    QCheckBox* dopplerCompensationCheckBox;
+    
+    // Azimuth settings
+    QDoubleSpinBox* azimuthOffsetSpinBox;
+    QDoubleSpinBox* azimuthMinSpinBox;
+    QDoubleSpinBox* azimuthMaxSpinBox;
+    
+    // Buttons
+    QPushButton* applyButton;
+    QPushButton* sendButton;
+    QPushButton* loadDefaultsButton;
+    QPushButton* closeButton;
+    
+    // Tab widget for organized settings
+    QTabWidget* tabWidget;
+    
+    void setupUI();
+    QWidget* createDetectionTab();
+    QWidget* createFFTTab();
+    QWidget* createFilterTab();
+    QWidget* createAmplificationTab();
+    QWidget* createTargetTab();
+    QWidget* createAzimuthTab();
+    
+    void connectSignals();
+    void updateAmplificationControls();
 };
 
 #endif // DIALOGS_H

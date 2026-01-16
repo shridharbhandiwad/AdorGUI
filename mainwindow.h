@@ -49,6 +49,7 @@ private slots:
     void showOutputConfigDialog();
     void showAngleCorrectionDialog();
     void showAmplificationDialog();
+    void showDSPSettingsDialog();
     
     // Control actions
     void toggleLiveStream();
@@ -75,6 +76,10 @@ private slots:
     
     // Zoom handling
     void onZoomChanged(double zoomLevel);
+    
+    // DSP Settings
+    void onSendDSPSettings(const DSP_Settings_t& settings);
+    void onDSPSettingsSent(bool success);
 
 private:
     // UI Setup
@@ -144,6 +149,7 @@ private:
     std::unique_ptr<OutputConfigDialog> outputConfigDialog;
     std::unique_ptr<AngleCorrectionDialog> angleDialog;
     std::unique_ptr<AmplificationDialog> amplificationDialog;
+    std::unique_ptr<DSPSettingsDialog> dspSettingsDialog;
     
     // Data management
     std::vector<DetectionData> recentDetections;

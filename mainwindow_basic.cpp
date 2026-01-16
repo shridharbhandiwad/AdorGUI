@@ -63,6 +63,10 @@ void MainWindow::setupMenuBar()
     QMenu* configMenu = menuBar->addMenu("Config");
     configMenu->addAction("Amplification Settings", this, &MainWindow::showAmplificationDialog);
     configMenu->addAction("Angle Correction", this, &MainWindow::showAngleCorrectionDialog);
+    
+    // DSP Settings menu
+    QMenu* dspMenu = menuBar->addMenu("DSP");
+    dspMenu->addAction("DSP Settings...", this, &MainWindow::showDSPSettingsDialog);
 }
 
 void MainWindow::setupUI()
@@ -433,6 +437,53 @@ void MainWindow::showAmplificationDialog()
                 this, &MainWindow::onAmplificationChanged);
     }
     amplificationDialog->exec();
+}
+
+void MainWindow::showDSPSettingsDialog()
+{
+    if (!dspSettingsDialog) {
+        dspSettingsDialog = std::make_unique<DSPSettingsDialog>(this);
+        
+        // Connect signals for sending DSP settings
+        connect(dspSettingsDialog.get(), &DSPSettingsDialog::sendSettingsRequested,
+                this, &MainWindow::onSendDSPSettings);
+    }
+    dspSettingsDialog->exec();
+}
+
+void MainWindow::onSendDSPSettings(const DSP_Settings_t& settings)
+{
+    // Check if we have a UDP connection
+    if (!udpConfigDialog || !udpConfigDialog->isConnected()) {
+        QMessageBox::warning(this, "Not Connected", 
+                            "Please connect to the radar via UDP Configuration first.");
+        return;
+    }
+    
+    UdpHandler* handler = udpConfigDialog->getUdpHandler();
+    if (handler) {
+        // Connect the sent signal if not already connected
+        static bool signalConnected = false;
+        if (!signalConnected) {
+            connect(handler, &UdpHandler::dspSettingsSent, 
+                    this, &MainWindow::onDSPSettingsSent);
+            signalConnected = true;
+        }
+        
+        // Send the settings
+        handler->sendDSPSettings(settings);
+    }
+}
+
+void MainWindow::onDSPSettingsSent(bool success)
+{
+    if (success) {
+        QMessageBox::information(this, "DSP Settings", 
+                                "DSP settings have been sent to the radar successfully.");
+    } else {
+        QMessageBox::warning(this, "DSP Settings", 
+                            "Failed to send DSP settings to the radar.");
+    }
 }
 
 void MainWindow::toggleLiveStream()
