@@ -8,6 +8,8 @@ UdpHandler::UdpHandler(QObject *parent)
     , udpSocket(nullptr)
     , currentPort(0)
     , connected(false)
+    , remoteHost("127.0.0.1")
+    , remotePort(5001)
     , maxDetections(1000)
     , detectionTimeoutMs(60000) // 60 seconds
     , packetsReceived(0)
@@ -369,4 +371,61 @@ void UdpHandler::resetStatistics()
 void UdpHandler::emitStatistics()
 {
     emit statisticsUpdated(packetsReceived, packetsDropped, getDataRate());
+}
+
+void UdpHandler::setRemoteHost(const QString& host, int port)
+{
+    remoteHost = host;
+    remotePort = port;
+    qDebug() << "Remote host set to" << host << ":" << port;
+}
+
+bool UdpHandler::sendDSPSettings(const DSP_Settings_t& settings)
+{
+    if (!udpSocket || !connected) {
+        emit errorOccurred("Cannot send DSP settings: Not connected");
+        emit dspSettingsSent(false);
+        return false;
+    }
+    
+    // Create a copy and update checksum
+    DSP_Settings_t settingsToSend = settings;
+    settingsToSend.updateChecksum();
+    
+    // Create packet with header
+    QByteArray packet;
+    
+    // Add packet header (identifier for DSP settings packet)
+    const char* header = "DSPS"; // DSP Settings header identifier
+    packet.append(header, 4);
+    
+    // Add packet version
+    uint8_t version = 1;
+    packet.append(reinterpret_cast<const char*>(&version), sizeof(version));
+    
+    // Add packet length
+    uint16_t dataLength = sizeof(DSP_Settings_t);
+    packet.append(reinterpret_cast<const char*>(&dataLength), sizeof(dataLength));
+    
+    // Reserved byte for alignment
+    uint8_t reserved = 0;
+    packet.append(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
+    
+    // Add the DSP settings data
+    packet.append(reinterpret_cast<const char*>(&settingsToSend), sizeof(DSP_Settings_t));
+    
+    // Send the packet
+    QHostAddress destAddress(remoteHost);
+    qint64 bytesSent = udpSocket->writeDatagram(packet, destAddress, remotePort);
+    
+    if (bytesSent == -1) {
+        QString error = QString("Failed to send DSP settings: %1").arg(udpSocket->errorString());
+        emit errorOccurred(error);
+        emit dspSettingsSent(false);
+        return false;
+    }
+    
+    qDebug() << "DSP Settings sent:" << bytesSent << "bytes to" << remoteHost << ":" << remotePort;
+    emit dspSettingsSent(true);
+    return true;
 }

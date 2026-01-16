@@ -728,3 +728,501 @@ void FilterConfigDialog::setSettings(const FilterSettings& settings)
     singleTargetSpinBox->setValue(settings.singleTargetFilter);
     showHistogramCheckBox->setChecked(settings.showHistogram);
 }
+
+// DSP Settings Dialog Implementation
+DSPSettingsDialog::DSPSettingsDialog(QWidget* parent)
+    : QDialog(parent)
+{
+    setWindowTitle("DSP Settings");
+    setModal(true);
+    setMinimumSize(600, 500);
+    
+    setupUI();
+    connectSignals();
+    
+    // Load default settings
+    DSP_Settings_t defaults;
+    setSettings(defaults);
+}
+
+DSPSettingsDialog::~DSPSettingsDialog() = default;
+
+void DSPSettingsDialog::setupUI()
+{
+    QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    
+    // Create tab widget
+    tabWidget = new QTabWidget();
+    tabWidget->addTab(createDetectionTab(), "Detection");
+    tabWidget->addTab(createFFTTab(), "FFT");
+    tabWidget->addTab(createFilterTab(), "Filters");
+    tabWidget->addTab(createAmplificationTab(), "Amplification");
+    tabWidget->addTab(createTargetTab(), "Target");
+    tabWidget->addTab(createAzimuthTab(), "Azimuth");
+    
+    mainLayout->addWidget(tabWidget);
+    
+    // Button layout
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    loadDefaultsButton = new QPushButton("Load Defaults");
+    applyButton = new QPushButton("Apply");
+    sendButton = new QPushButton("Send to Radar");
+    closeButton = new QPushButton("Close");
+    
+    sendButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+    
+    buttonLayout->addWidget(loadDefaultsButton);
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(applyButton);
+    buttonLayout->addWidget(sendButton);
+    buttonLayout->addWidget(closeButton);
+    
+    mainLayout->addLayout(buttonLayout);
+}
+
+QWidget* DSPSettingsDialog::createDetectionTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    // Threshold settings
+    QGroupBox* thresholdGroup = new QGroupBox("Threshold Settings");
+    QGridLayout* thresholdLayout = new QGridLayout(thresholdGroup);
+    
+    thresholdLayout->addWidget(new QLabel("Detection Threshold (dB):"), 0, 0);
+    detectionThresholdSpinBox = new QSpinBox();
+    detectionThresholdSpinBox->setRange(-50, 50);
+    detectionThresholdSpinBox->setValue(0);
+    thresholdLayout->addWidget(detectionThresholdSpinBox, 0, 1);
+    
+    thresholdLayout->addWidget(new QLabel("CFAR Threshold (dB):"), 1, 0);
+    cfarThresholdSpinBox = new QSpinBox();
+    cfarThresholdSpinBox->setRange(0, 30);
+    cfarThresholdSpinBox->setValue(10);
+    thresholdLayout->addWidget(cfarThresholdSpinBox, 1, 1);
+    
+    layout->addWidget(thresholdGroup);
+    
+    // Range settings
+    QGroupBox* rangeGroup = new QGroupBox("Range Settings");
+    QGridLayout* rangeLayout = new QGridLayout(rangeGroup);
+    
+    rangeLayout->addWidget(new QLabel("Min Range (m):"), 0, 0);
+    rangeMinSpinBox = new QDoubleSpinBox();
+    rangeMinSpinBox->setRange(0.0, 100.0);
+    rangeMinSpinBox->setValue(0.5);
+    rangeMinSpinBox->setSingleStep(0.1);
+    rangeMinSpinBox->setDecimals(1);
+    rangeLayout->addWidget(rangeMinSpinBox, 0, 1);
+    
+    rangeLayout->addWidget(new QLabel("Max Range (m):"), 1, 0);
+    rangeMaxSpinBox = new QDoubleSpinBox();
+    rangeMaxSpinBox->setRange(1.0, 150.0);
+    rangeMaxSpinBox->setValue(50.0);
+    rangeMaxSpinBox->setSingleStep(1.0);
+    rangeMaxSpinBox->setDecimals(1);
+    rangeLayout->addWidget(rangeMaxSpinBox, 1, 1);
+    
+    layout->addWidget(rangeGroup);
+    
+    // Speed settings
+    QGroupBox* speedGroup = new QGroupBox("Speed Settings");
+    QGridLayout* speedLayout = new QGridLayout(speedGroup);
+    
+    speedLayout->addWidget(new QLabel("Min Speed (m/s):"), 0, 0);
+    speedMinSpinBox = new QDoubleSpinBox();
+    speedMinSpinBox->setRange(0.0, 50.0);
+    speedMinSpinBox->setValue(0.0);
+    speedMinSpinBox->setSingleStep(0.5);
+    speedMinSpinBox->setDecimals(1);
+    speedLayout->addWidget(speedMinSpinBox, 0, 1);
+    
+    speedLayout->addWidget(new QLabel("Max Speed (m/s):"), 1, 0);
+    speedMaxSpinBox = new QDoubleSpinBox();
+    speedMaxSpinBox->setRange(1.0, 100.0);
+    speedMaxSpinBox->setValue(50.0);
+    speedMaxSpinBox->setSingleStep(1.0);
+    speedMaxSpinBox->setDecimals(1);
+    speedLayout->addWidget(speedMaxSpinBox, 1, 1);
+    
+    layout->addWidget(speedGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+QWidget* DSPSettingsDialog::createFFTTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    QGroupBox* fftGroup = new QGroupBox("FFT Configuration");
+    QGridLayout* fftLayout = new QGridLayout(fftGroup);
+    
+    fftLayout->addWidget(new QLabel("FFT Size:"), 0, 0);
+    fftSizeCombo = new QComboBox();
+    fftSizeCombo->addItems({"64", "128", "256", "512", "1024"});
+    fftSizeCombo->setCurrentIndex(2); // Default to 256
+    fftLayout->addWidget(fftSizeCombo, 0, 1);
+    
+    fftLayout->addWidget(new QLabel("Window Type:"), 1, 0);
+    fftWindowTypeCombo = new QComboBox();
+    fftWindowTypeCombo->addItems({"None", "Hann", "Hamming", "Blackman"});
+    fftWindowTypeCombo->setCurrentIndex(1); // Default to Hann
+    fftLayout->addWidget(fftWindowTypeCombo, 1, 1);
+    
+    fftLayout->addWidget(new QLabel("FFT Averaging:"), 2, 0);
+    fftAveragingSpinBox = new QSpinBox();
+    fftAveragingSpinBox->setRange(1, 16);
+    fftAveragingSpinBox->setValue(4);
+    fftLayout->addWidget(fftAveragingSpinBox, 2, 1);
+    
+    layout->addWidget(fftGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+QWidget* DSPSettingsDialog::createFilterTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    // General filter settings
+    QGroupBox* generalFilterGroup = new QGroupBox("General Filter Settings");
+    QVBoxLayout* generalLayout = new QVBoxLayout(generalFilterGroup);
+    
+    filterEnabledCheckBox = new QCheckBox("Enable Filters");
+    filterEnabledCheckBox->setChecked(true);
+    generalLayout->addWidget(filterEnabledCheckBox);
+    
+    QHBoxLayout* movingAvgLayout = new QHBoxLayout();
+    movingAvgEnabledCheckBox = new QCheckBox("Moving Average Filter");
+    movingAvgLayout->addWidget(movingAvgEnabledCheckBox);
+    movingAvgLayout->addWidget(new QLabel("Window Size:"));
+    movingAvgWindowSpinBox = new QSpinBox();
+    movingAvgWindowSpinBox->setRange(1, 32);
+    movingAvgWindowSpinBox->setValue(4);
+    movingAvgLayout->addWidget(movingAvgWindowSpinBox);
+    movingAvgLayout->addStretch();
+    generalLayout->addLayout(movingAvgLayout);
+    
+    layout->addWidget(generalFilterGroup);
+    
+    // Line filter settings
+    QGroupBox* lineFilterGroup = new QGroupBox("Line Filter Settings");
+    QVBoxLayout* lineLayout = new QVBoxLayout(lineFilterGroup);
+    
+    lineFilter50HzCheckBox = new QCheckBox("50 Hz Line Filter");
+    lineFilter100HzCheckBox = new QCheckBox("100 Hz Line Filter");
+    lineFilter150HzCheckBox = new QCheckBox("150 Hz Line Filter");
+    
+    lineLayout->addWidget(lineFilter50HzCheckBox);
+    lineLayout->addWidget(lineFilter100HzCheckBox);
+    lineLayout->addWidget(lineFilter150HzCheckBox);
+    
+    layout->addWidget(lineFilterGroup);
+    
+    // Signal processing settings
+    QGroupBox* signalProcessingGroup = new QGroupBox("Signal Processing");
+    QVBoxLayout* signalLayout = new QVBoxLayout(signalProcessingGroup);
+    
+    noiseFloorTrackingCheckBox = new QCheckBox("Noise Floor Tracking");
+    noiseFloorTrackingCheckBox->setChecked(true);
+    clutterRemovalCheckBox = new QCheckBox("Clutter Removal");
+    dopplerCompensationCheckBox = new QCheckBox("Doppler Compensation");
+    
+    signalLayout->addWidget(noiseFloorTrackingCheckBox);
+    signalLayout->addWidget(clutterRemovalCheckBox);
+    signalLayout->addWidget(dopplerCompensationCheckBox);
+    
+    layout->addWidget(signalProcessingGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+QWidget* DSPSettingsDialog::createAmplificationTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    // Manual amplification
+    QGroupBox* manualGroup = new QGroupBox("Manual Amplification");
+    QVBoxLayout* manualLayout = new QVBoxLayout(manualGroup);
+    
+    QHBoxLayout* sliderLayout = new QHBoxLayout();
+    sliderLayout->addWidget(new QLabel("Amplification:"));
+    amplificationSlider = new QSlider(Qt::Horizontal);
+    amplificationSlider->setRange(0, 60);
+    amplificationSlider->setValue(20);
+    amplificationLabel = new QLabel("20 dB");
+    amplificationLabel->setMinimumWidth(50);
+    sliderLayout->addWidget(amplificationSlider);
+    sliderLayout->addWidget(amplificationLabel);
+    manualLayout->addLayout(sliderLayout);
+    
+    layout->addWidget(manualGroup);
+    
+    // Auto amplification
+    QGroupBox* autoGroup = new QGroupBox("Automatic Amplification");
+    QVBoxLayout* autoLayout = new QVBoxLayout(autoGroup);
+    
+    autoAmplificationCheckBox = new QCheckBox("Enable Automatic Amplification");
+    autoLayout->addWidget(autoAmplificationCheckBox);
+    
+    QGridLayout* thresholdLayout = new QGridLayout();
+    thresholdLayout->addWidget(new QLabel("Inner Threshold (dB):"), 0, 0);
+    autoAmpInnerThresholdSpinBox = new QSpinBox();
+    autoAmpInnerThresholdSpinBox->setRange(0, 100);
+    autoAmpInnerThresholdSpinBox->setValue(30);
+    thresholdLayout->addWidget(autoAmpInnerThresholdSpinBox, 0, 1);
+    
+    thresholdLayout->addWidget(new QLabel("Outer Threshold (dB):"), 1, 0);
+    autoAmpOuterThresholdSpinBox = new QSpinBox();
+    autoAmpOuterThresholdSpinBox->setRange(0, 100);
+    autoAmpOuterThresholdSpinBox->setValue(70);
+    thresholdLayout->addWidget(autoAmpOuterThresholdSpinBox, 1, 1);
+    
+    autoLayout->addLayout(thresholdLayout);
+    layout->addWidget(autoGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+QWidget* DSPSettingsDialog::createTargetTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    QGroupBox* targetGroup = new QGroupBox("Target Selection Settings");
+    QGridLayout* targetLayout = new QGridLayout(targetGroup);
+    
+    targetLayout->addWidget(new QLabel("Selection Mode:"), 0, 0);
+    targetSelectionModeCombo = new QComboBox();
+    targetSelectionModeCombo->addItems({"All Targets", "Nearest Target", "Fastest Target", "Strongest Target"});
+    targetLayout->addWidget(targetSelectionModeCombo, 0, 1);
+    
+    targetLayout->addWidget(new QLabel("Max Targets:"), 1, 0);
+    maxTargetsSpinBox = new QSpinBox();
+    maxTargetsSpinBox->setRange(1, 10);
+    maxTargetsSpinBox->setValue(5);
+    targetLayout->addWidget(maxTargetsSpinBox, 1, 1);
+    
+    targetLayout->addWidget(new QLabel("Direction Filter:"), 2, 0);
+    directionFilterCombo = new QComboBox();
+    directionFilterCombo->addItems({"Both Directions", "Approaching Only", "Receding Only"});
+    targetLayout->addWidget(directionFilterCombo, 2, 1);
+    
+    layout->addWidget(targetGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+QWidget* DSPSettingsDialog::createAzimuthTab()
+{
+    QWidget* tab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    
+    QGroupBox* azimuthGroup = new QGroupBox("Azimuth Settings");
+    QGridLayout* azimuthLayout = new QGridLayout(azimuthGroup);
+    
+    azimuthLayout->addWidget(new QLabel("Azimuth Offset (deg):"), 0, 0);
+    azimuthOffsetSpinBox = new QDoubleSpinBox();
+    azimuthOffsetSpinBox->setRange(-45.0, 45.0);
+    azimuthOffsetSpinBox->setValue(0.0);
+    azimuthOffsetSpinBox->setSingleStep(0.5);
+    azimuthOffsetSpinBox->setDecimals(1);
+    azimuthLayout->addWidget(azimuthOffsetSpinBox, 0, 1);
+    
+    azimuthLayout->addWidget(new QLabel("Min Azimuth (deg):"), 1, 0);
+    azimuthMinSpinBox = new QDoubleSpinBox();
+    azimuthMinSpinBox->setRange(-60.0, 60.0);
+    azimuthMinSpinBox->setValue(-45.0);
+    azimuthMinSpinBox->setSingleStep(1.0);
+    azimuthMinSpinBox->setDecimals(1);
+    azimuthLayout->addWidget(azimuthMinSpinBox, 1, 1);
+    
+    azimuthLayout->addWidget(new QLabel("Max Azimuth (deg):"), 2, 0);
+    azimuthMaxSpinBox = new QDoubleSpinBox();
+    azimuthMaxSpinBox->setRange(-60.0, 60.0);
+    azimuthMaxSpinBox->setValue(45.0);
+    azimuthMaxSpinBox->setSingleStep(1.0);
+    azimuthMaxSpinBox->setDecimals(1);
+    azimuthLayout->addWidget(azimuthMaxSpinBox, 2, 1);
+    
+    layout->addWidget(azimuthGroup);
+    layout->addStretch();
+    
+    return tab;
+}
+
+void DSPSettingsDialog::connectSignals()
+{
+    connect(amplificationSlider, &QSlider::valueChanged, [this](int value) {
+        amplificationLabel->setText(QString("%1 dB").arg(value));
+    });
+    
+    connect(autoAmplificationCheckBox, &QCheckBox::toggled, this, &DSPSettingsDialog::updateAmplificationControls);
+    
+    connect(applyButton, &QPushButton::clicked, this, &DSPSettingsDialog::onApplyClicked);
+    connect(sendButton, &QPushButton::clicked, this, &DSPSettingsDialog::onSendClicked);
+    connect(loadDefaultsButton, &QPushButton::clicked, this, &DSPSettingsDialog::onLoadDefaultsClicked);
+    connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
+}
+
+void DSPSettingsDialog::updateAmplificationControls()
+{
+    bool autoEnabled = autoAmplificationCheckBox->isChecked();
+    amplificationSlider->setEnabled(!autoEnabled);
+    autoAmpInnerThresholdSpinBox->setEnabled(autoEnabled);
+    autoAmpOuterThresholdSpinBox->setEnabled(autoEnabled);
+}
+
+void DSPSettingsDialog::onApplyClicked()
+{
+    DSP_Settings_t settings = getSettings();
+    emit settingsChanged(settings);
+    QMessageBox::information(this, "Settings Applied", "DSP settings have been applied locally.");
+}
+
+void DSPSettingsDialog::onSendClicked()
+{
+    DSP_Settings_t settings = getSettings();
+    settings.updateChecksum();
+    emit sendSettingsRequested(settings);
+}
+
+void DSPSettingsDialog::onLoadDefaultsClicked()
+{
+    DSP_Settings_t defaults;
+    setSettings(defaults);
+    QMessageBox::information(this, "Defaults Loaded", "Default DSP settings have been loaded.");
+}
+
+DSP_Settings_t DSPSettingsDialog::getSettings() const
+{
+    DSP_Settings_t settings;
+    
+    // Detection threshold settings
+    settings.detection_threshold = static_cast<int16_t>(detectionThresholdSpinBox->value());
+    settings.cfar_threshold = static_cast<int16_t>(cfarThresholdSpinBox->value());
+    
+    // Range settings
+    settings.range_min = static_cast<float>(rangeMinSpinBox->value());
+    settings.range_max = static_cast<float>(rangeMaxSpinBox->value());
+    
+    // Speed settings
+    settings.speed_min = static_cast<float>(speedMinSpinBox->value());
+    settings.speed_max = static_cast<float>(speedMaxSpinBox->value());
+    
+    // FFT settings
+    int fftIndex = fftSizeCombo->currentIndex();
+    uint16_t fftSizes[] = {64, 128, 256, 512, 1024};
+    settings.fft_size = fftSizes[fftIndex];
+    settings.fft_window_type = static_cast<uint8_t>(fftWindowTypeCombo->currentIndex());
+    settings.fft_averaging = static_cast<uint8_t>(fftAveragingSpinBox->value());
+    
+    // Filter settings
+    settings.filter_enabled = filterEnabledCheckBox->isChecked() ? 1 : 0;
+    settings.moving_avg_enabled = movingAvgEnabledCheckBox->isChecked() ? 1 : 0;
+    settings.moving_avg_window = static_cast<uint8_t>(movingAvgWindowSpinBox->value());
+    
+    // Line filter settings
+    settings.line_filter_50hz = lineFilter50HzCheckBox->isChecked() ? 1 : 0;
+    settings.line_filter_100hz = lineFilter100HzCheckBox->isChecked() ? 1 : 0;
+    settings.line_filter_150hz = lineFilter150HzCheckBox->isChecked() ? 1 : 0;
+    
+    // Amplification settings
+    settings.amplification = static_cast<int16_t>(amplificationSlider->value());
+    settings.auto_amplification = autoAmplificationCheckBox->isChecked() ? 1 : 0;
+    settings.auto_amp_inner_threshold = static_cast<int16_t>(autoAmpInnerThresholdSpinBox->value());
+    settings.auto_amp_outer_threshold = static_cast<int16_t>(autoAmpOuterThresholdSpinBox->value());
+    
+    // Target selection settings
+    settings.target_selection_mode = static_cast<uint8_t>(targetSelectionModeCombo->currentIndex());
+    settings.max_targets = static_cast<uint8_t>(maxTargetsSpinBox->value());
+    settings.direction_filter = static_cast<uint8_t>(directionFilterCombo->currentIndex());
+    
+    // Signal processing settings
+    settings.noise_floor_tracking = noiseFloorTrackingCheckBox->isChecked() ? 1 : 0;
+    settings.clutter_removal = clutterRemovalCheckBox->isChecked() ? 1 : 0;
+    settings.doppler_compensation = dopplerCompensationCheckBox->isChecked() ? 1 : 0;
+    
+    // Azimuth settings
+    settings.azimuth_offset = static_cast<float>(azimuthOffsetSpinBox->value());
+    settings.azimuth_min = static_cast<float>(azimuthMinSpinBox->value());
+    settings.azimuth_max = static_cast<float>(azimuthMaxSpinBox->value());
+    
+    return settings;
+}
+
+void DSPSettingsDialog::setSettings(const DSP_Settings_t& settings)
+{
+    // Detection threshold settings
+    detectionThresholdSpinBox->setValue(settings.detection_threshold);
+    cfarThresholdSpinBox->setValue(settings.cfar_threshold);
+    
+    // Range settings
+    rangeMinSpinBox->setValue(settings.range_min);
+    rangeMaxSpinBox->setValue(settings.range_max);
+    
+    // Speed settings
+    speedMinSpinBox->setValue(settings.speed_min);
+    speedMaxSpinBox->setValue(settings.speed_max);
+    
+    // FFT settings
+    int fftIndex = 2; // Default to 256
+    switch (settings.fft_size) {
+        case 64: fftIndex = 0; break;
+        case 128: fftIndex = 1; break;
+        case 256: fftIndex = 2; break;
+        case 512: fftIndex = 3; break;
+        case 1024: fftIndex = 4; break;
+    }
+    fftSizeCombo->setCurrentIndex(fftIndex);
+    fftWindowTypeCombo->setCurrentIndex(settings.fft_window_type);
+    fftAveragingSpinBox->setValue(settings.fft_averaging);
+    
+    // Filter settings
+    filterEnabledCheckBox->setChecked(settings.filter_enabled != 0);
+    movingAvgEnabledCheckBox->setChecked(settings.moving_avg_enabled != 0);
+    movingAvgWindowSpinBox->setValue(settings.moving_avg_window);
+    
+    // Line filter settings
+    lineFilter50HzCheckBox->setChecked(settings.line_filter_50hz != 0);
+    lineFilter100HzCheckBox->setChecked(settings.line_filter_100hz != 0);
+    lineFilter150HzCheckBox->setChecked(settings.line_filter_150hz != 0);
+    
+    // Amplification settings
+    amplificationSlider->setValue(settings.amplification);
+    amplificationLabel->setText(QString("%1 dB").arg(settings.amplification));
+    autoAmplificationCheckBox->setChecked(settings.auto_amplification != 0);
+    autoAmpInnerThresholdSpinBox->setValue(settings.auto_amp_inner_threshold);
+    autoAmpOuterThresholdSpinBox->setValue(settings.auto_amp_outer_threshold);
+    
+    // Target selection settings
+    targetSelectionModeCombo->setCurrentIndex(settings.target_selection_mode);
+    maxTargetsSpinBox->setValue(settings.max_targets);
+    directionFilterCombo->setCurrentIndex(settings.direction_filter);
+    
+    // Signal processing settings
+    noiseFloorTrackingCheckBox->setChecked(settings.noise_floor_tracking != 0);
+    clutterRemovalCheckBox->setChecked(settings.clutter_removal != 0);
+    dopplerCompensationCheckBox->setChecked(settings.doppler_compensation != 0);
+    
+    // Azimuth settings
+    azimuthOffsetSpinBox->setValue(settings.azimuth_offset);
+    azimuthMinSpinBox->setValue(settings.azimuth_min);
+    azimuthMaxSpinBox->setValue(settings.azimuth_max);
+    
+    updateAmplificationControls();
+}
+
+void DSPSettingsDialog::updateUIFromSettings()
+{
+    updateAmplificationControls();
+}

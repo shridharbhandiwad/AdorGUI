@@ -31,10 +31,14 @@ public:
     // Configuration
     void setMaxDetections(int max) { maxDetections = max; }
     void setDetectionTimeout(int timeoutMs) { detectionTimeoutMs = timeoutMs; }
+    void setRemoteHost(const QString& host, int port);
     
     // Data access
     std::vector<DetectionData> getRecentDetections() const;
     int getDetectionCount() const;
+    
+    // Send DSP settings to radar
+    bool sendDSPSettings(const DSP_Settings_t& settings);
     
     // Statistics
     int getPacketsReceived() const { return packetsReceived; }
@@ -47,6 +51,7 @@ signals:
     void detectionsUpdated();
     void errorOccurred(const QString& error);
     void statisticsUpdated(int packetsReceived, int packetsDropped, double dataRate);
+    void dspSettingsSent(bool success);
 
 private slots:
     void readPendingDatagrams();
@@ -59,6 +64,10 @@ private:
     QString currentHost;
     int currentPort;
     bool connected;
+    
+    // Remote destination for sending settings
+    QString remoteHost;
+    int remotePort;
     
     // Data storage
     mutable QMutex detectionsMutex;
