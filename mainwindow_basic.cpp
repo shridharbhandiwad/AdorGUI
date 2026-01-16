@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QFile>
+#include <QScrollArea>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -140,6 +141,9 @@ void MainWindow::setupUI()
     configLayout->addWidget(amplificationLabel, 1, 2);
     
     leftLayout->addWidget(configGroup);
+    
+    // DSP Radar Settings section
+    setupDSPControlsUI(leftLayout);
     
     // Right side - Target information
     // COMMENTED OUT - Output target lists not required as of now
@@ -824,5 +828,390 @@ void MainWindow::onTrackTableSelectionChanged()
             highlightTargetInChart(target);
             break;
         }
+    }
+}
+
+void MainWindow::setupDSPControlsUI(QVBoxLayout* parentLayout)
+{
+    // Create scrollable area for DSP controls
+    QScrollArea* scrollArea = new QScrollArea();
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setMaximumHeight(350);
+    
+    QWidget* scrollWidget = new QWidget();
+    QVBoxLayout* scrollLayout = new QVBoxLayout(scrollWidget);
+    
+    // Create main DSP Settings group
+    QGroupBox* dspGroup = new QGroupBox("Radar Settings (DSP Controls)");
+    QGridLayout* dspLayout = new QGridLayout(dspGroup);
+    dspLayout->setSpacing(5);
+    
+    int row = 0;
+    
+    // === Detection Threshold Settings ===
+    QLabel* detectionHeader = new QLabel("<b>Detection Thresholds</b>");
+    dspLayout->addWidget(detectionHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Detection Threshold (dB):"), row, 0);
+    dspDetectionThresholdEdit = new QLineEdit();
+    dspDetectionThresholdEdit->setPlaceholderText("-50 to 50");
+    dspDetectionThresholdEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspDetectionThresholdEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("CFAR Threshold (dB):"), row, 2);
+    dspCfarThresholdEdit = new QLineEdit();
+    dspCfarThresholdEdit->setPlaceholderText("0 to 30");
+    dspCfarThresholdEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspCfarThresholdEdit, row++, 3);
+    
+    // === Range Settings ===
+    QLabel* rangeHeader = new QLabel("<b>Range Settings</b>");
+    dspLayout->addWidget(rangeHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Range Min (m):"), row, 0);
+    dspRangeMinEdit = new QLineEdit();
+    dspRangeMinEdit->setPlaceholderText("0.0 to 100.0");
+    dspRangeMinEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspRangeMinEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Range Max (m):"), row, 2);
+    dspRangeMaxEdit = new QLineEdit();
+    dspRangeMaxEdit->setPlaceholderText("1.0 to 150.0");
+    dspRangeMaxEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspRangeMaxEdit, row++, 3);
+    
+    // === Speed Settings ===
+    QLabel* speedHeader = new QLabel("<b>Speed Settings</b>");
+    dspLayout->addWidget(speedHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Speed Min (m/s):"), row, 0);
+    dspSpeedMinEdit = new QLineEdit();
+    dspSpeedMinEdit->setPlaceholderText("0.0 to 50.0");
+    dspSpeedMinEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspSpeedMinEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Speed Max (m/s):"), row, 2);
+    dspSpeedMaxEdit = new QLineEdit();
+    dspSpeedMaxEdit->setPlaceholderText("1.0 to 100.0");
+    dspSpeedMaxEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspSpeedMaxEdit, row++, 3);
+    
+    // === FFT Settings ===
+    QLabel* fftHeader = new QLabel("<b>FFT Settings</b>");
+    dspLayout->addWidget(fftHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("FFT Size:"), row, 0);
+    dspFftSizeEdit = new QLineEdit();
+    dspFftSizeEdit->setPlaceholderText("64,128,256,512,1024");
+    dspFftSizeEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspFftSizeEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Window Type (0-3):"), row, 2);
+    dspFftWindowTypeEdit = new QLineEdit();
+    dspFftWindowTypeEdit->setPlaceholderText("0=None,1=Hann...");
+    dspFftWindowTypeEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspFftWindowTypeEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("FFT Averaging:"), row, 0);
+    dspFftAveragingEdit = new QLineEdit();
+    dspFftAveragingEdit->setPlaceholderText("1 to 16");
+    dspFftAveragingEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspFftAveragingEdit, row++, 1);
+    
+    // === Filter Settings ===
+    QLabel* filterHeader = new QLabel("<b>Filter Settings</b>");
+    dspLayout->addWidget(filterHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Filter Enabled (0/1):"), row, 0);
+    dspFilterEnabledEdit = new QLineEdit();
+    dspFilterEnabledEdit->setPlaceholderText("0 or 1");
+    dspFilterEnabledEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspFilterEnabledEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Moving Avg (0/1):"), row, 2);
+    dspMovingAvgEnabledEdit = new QLineEdit();
+    dspMovingAvgEnabledEdit->setPlaceholderText("0 or 1");
+    dspMovingAvgEnabledEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspMovingAvgEnabledEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("Mov Avg Window:"), row, 0);
+    dspMovingAvgWindowEdit = new QLineEdit();
+    dspMovingAvgWindowEdit->setPlaceholderText("1 to 32");
+    dspMovingAvgWindowEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspMovingAvgWindowEdit, row++, 1);
+    
+    // === Line Filter Settings ===
+    QLabel* lineFilterHeader = new QLabel("<b>Line Filters (0/1)</b>");
+    dspLayout->addWidget(lineFilterHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("50 Hz Filter:"), row, 0);
+    dspLineFilter50HzEdit = new QLineEdit();
+    dspLineFilter50HzEdit->setPlaceholderText("0 or 1");
+    dspLineFilter50HzEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspLineFilter50HzEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("100 Hz Filter:"), row, 2);
+    dspLineFilter100HzEdit = new QLineEdit();
+    dspLineFilter100HzEdit->setPlaceholderText("0 or 1");
+    dspLineFilter100HzEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspLineFilter100HzEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("150 Hz Filter:"), row, 0);
+    dspLineFilter150HzEdit = new QLineEdit();
+    dspLineFilter150HzEdit->setPlaceholderText("0 or 1");
+    dspLineFilter150HzEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspLineFilter150HzEdit, row++, 1);
+    
+    // === Amplification Settings ===
+    QLabel* ampHeader = new QLabel("<b>Amplification</b>");
+    dspLayout->addWidget(ampHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Amplification (dB):"), row, 0);
+    dspAmplificationEdit = new QLineEdit();
+    dspAmplificationEdit->setPlaceholderText("0 to 60");
+    dspAmplificationEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAmplificationEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Auto Amp (0/1):"), row, 2);
+    dspAutoAmplificationEdit = new QLineEdit();
+    dspAutoAmplificationEdit->setPlaceholderText("0 or 1");
+    dspAutoAmplificationEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAutoAmplificationEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("Auto Inner Thr (dB):"), row, 0);
+    dspAutoAmpInnerThresholdEdit = new QLineEdit();
+    dspAutoAmpInnerThresholdEdit->setPlaceholderText("0 to 100");
+    dspAutoAmpInnerThresholdEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAutoAmpInnerThresholdEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Auto Outer Thr (dB):"), row, 2);
+    dspAutoAmpOuterThresholdEdit = new QLineEdit();
+    dspAutoAmpOuterThresholdEdit->setPlaceholderText("0 to 100");
+    dspAutoAmpOuterThresholdEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAutoAmpOuterThresholdEdit, row++, 3);
+    
+    // === Target Selection Settings ===
+    QLabel* targetHeader = new QLabel("<b>Target Selection</b>");
+    dspLayout->addWidget(targetHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Selection Mode (0-3):"), row, 0);
+    dspTargetSelectionModeEdit = new QLineEdit();
+    dspTargetSelectionModeEdit->setPlaceholderText("0=All,1=Near...");
+    dspTargetSelectionModeEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspTargetSelectionModeEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Max Targets:"), row, 2);
+    dspMaxTargetsEdit = new QLineEdit();
+    dspMaxTargetsEdit->setPlaceholderText("1 to 10");
+    dspMaxTargetsEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspMaxTargetsEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("Direction (0-2):"), row, 0);
+    dspDirectionFilterEdit = new QLineEdit();
+    dspDirectionFilterEdit->setPlaceholderText("0=Both,1=Appr...");
+    dspDirectionFilterEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspDirectionFilterEdit, row++, 1);
+    
+    // === Signal Processing Settings ===
+    QLabel* signalHeader = new QLabel("<b>Signal Processing (0/1)</b>");
+    dspLayout->addWidget(signalHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Noise Floor Track:"), row, 0);
+    dspNoiseFloorTrackingEdit = new QLineEdit();
+    dspNoiseFloorTrackingEdit->setPlaceholderText("0 or 1");
+    dspNoiseFloorTrackingEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspNoiseFloorTrackingEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Clutter Removal:"), row, 2);
+    dspClutterRemovalEdit = new QLineEdit();
+    dspClutterRemovalEdit->setPlaceholderText("0 or 1");
+    dspClutterRemovalEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspClutterRemovalEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("Doppler Comp:"), row, 0);
+    dspDopplerCompensationEdit = new QLineEdit();
+    dspDopplerCompensationEdit->setPlaceholderText("0 or 1");
+    dspDopplerCompensationEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspDopplerCompensationEdit, row++, 1);
+    
+    // === Azimuth Settings ===
+    QLabel* azimuthHeader = new QLabel("<b>Azimuth Settings</b>");
+    dspLayout->addWidget(azimuthHeader, row++, 0, 1, 4);
+    
+    dspLayout->addWidget(new QLabel("Azimuth Offset (deg):"), row, 0);
+    dspAzimuthOffsetEdit = new QLineEdit();
+    dspAzimuthOffsetEdit->setPlaceholderText("-45 to 45");
+    dspAzimuthOffsetEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAzimuthOffsetEdit, row, 1);
+    
+    dspLayout->addWidget(new QLabel("Azimuth Min (deg):"), row, 2);
+    dspAzimuthMinEdit = new QLineEdit();
+    dspAzimuthMinEdit->setPlaceholderText("-60 to 60");
+    dspAzimuthMinEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAzimuthMinEdit, row++, 3);
+    
+    dspLayout->addWidget(new QLabel("Azimuth Max (deg):"), row, 0);
+    dspAzimuthMaxEdit = new QLineEdit();
+    dspAzimuthMaxEdit->setPlaceholderText("-60 to 60");
+    dspAzimuthMaxEdit->setMaximumWidth(80);
+    dspLayout->addWidget(dspAzimuthMaxEdit, row++, 1);
+    
+    // === Apply Settings Button ===
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+    applyDSPSettingsButton = new QPushButton("Apply Settings");
+    applyDSPSettingsButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px; }");
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(applyDSPSettingsButton);
+    buttonLayout->addStretch();
+    dspLayout->addLayout(buttonLayout, row++, 0, 1, 4);
+    
+    scrollLayout->addWidget(dspGroup);
+    scrollArea->setWidget(scrollWidget);
+    
+    parentLayout->addWidget(scrollArea);
+    
+    // Connect Apply Settings button
+    connect(applyDSPSettingsButton, &QPushButton::clicked, this, &MainWindow::applyDSPSettingsFromUI);
+    
+    // Populate with default values
+    populateDSPControlsWithDefaults();
+}
+
+DSP_Settings_t MainWindow::collectDSPSettingsFromUI() const
+{
+    DSP_Settings_t settings;
+    
+    // Detection threshold settings
+    settings.detection_threshold = static_cast<int16_t>(dspDetectionThresholdEdit->text().toInt());
+    settings.cfar_threshold = static_cast<int16_t>(dspCfarThresholdEdit->text().toInt());
+    
+    // Range settings
+    settings.range_min = dspRangeMinEdit->text().toFloat();
+    settings.range_max = dspRangeMaxEdit->text().toFloat();
+    
+    // Speed settings
+    settings.speed_min = dspSpeedMinEdit->text().toFloat();
+    settings.speed_max = dspSpeedMaxEdit->text().toFloat();
+    
+    // FFT settings
+    settings.fft_size = static_cast<uint16_t>(dspFftSizeEdit->text().toUInt());
+    settings.fft_window_type = static_cast<uint8_t>(dspFftWindowTypeEdit->text().toUInt());
+    settings.fft_averaging = static_cast<uint8_t>(dspFftAveragingEdit->text().toUInt());
+    
+    // Filter settings
+    settings.filter_enabled = static_cast<uint8_t>(dspFilterEnabledEdit->text().toUInt());
+    settings.moving_avg_enabled = static_cast<uint8_t>(dspMovingAvgEnabledEdit->text().toUInt());
+    settings.moving_avg_window = static_cast<uint8_t>(dspMovingAvgWindowEdit->text().toUInt());
+    
+    // Line filter settings
+    settings.line_filter_50hz = static_cast<uint8_t>(dspLineFilter50HzEdit->text().toUInt());
+    settings.line_filter_100hz = static_cast<uint8_t>(dspLineFilter100HzEdit->text().toUInt());
+    settings.line_filter_150hz = static_cast<uint8_t>(dspLineFilter150HzEdit->text().toUInt());
+    
+    // Amplification settings
+    settings.amplification = static_cast<int16_t>(dspAmplificationEdit->text().toInt());
+    settings.auto_amplification = static_cast<uint8_t>(dspAutoAmplificationEdit->text().toUInt());
+    settings.auto_amp_inner_threshold = static_cast<int16_t>(dspAutoAmpInnerThresholdEdit->text().toInt());
+    settings.auto_amp_outer_threshold = static_cast<int16_t>(dspAutoAmpOuterThresholdEdit->text().toInt());
+    
+    // Target selection settings
+    settings.target_selection_mode = static_cast<uint8_t>(dspTargetSelectionModeEdit->text().toUInt());
+    settings.max_targets = static_cast<uint8_t>(dspMaxTargetsEdit->text().toUInt());
+    settings.direction_filter = static_cast<uint8_t>(dspDirectionFilterEdit->text().toUInt());
+    
+    // Signal processing settings
+    settings.noise_floor_tracking = static_cast<uint8_t>(dspNoiseFloorTrackingEdit->text().toUInt());
+    settings.clutter_removal = static_cast<uint8_t>(dspClutterRemovalEdit->text().toUInt());
+    settings.doppler_compensation = static_cast<uint8_t>(dspDopplerCompensationEdit->text().toUInt());
+    
+    // Azimuth settings
+    settings.azimuth_offset = dspAzimuthOffsetEdit->text().toFloat();
+    settings.azimuth_min = dspAzimuthMinEdit->text().toFloat();
+    settings.azimuth_max = dspAzimuthMaxEdit->text().toFloat();
+    
+    return settings;
+}
+
+void MainWindow::populateDSPControlsWithDefaults()
+{
+    DSP_Settings_t defaults;
+    
+    // Detection threshold settings
+    dspDetectionThresholdEdit->setText(QString::number(defaults.detection_threshold));
+    dspCfarThresholdEdit->setText(QString::number(defaults.cfar_threshold));
+    
+    // Range settings
+    dspRangeMinEdit->setText(QString::number(defaults.range_min, 'f', 1));
+    dspRangeMaxEdit->setText(QString::number(defaults.range_max, 'f', 1));
+    
+    // Speed settings
+    dspSpeedMinEdit->setText(QString::number(defaults.speed_min, 'f', 1));
+    dspSpeedMaxEdit->setText(QString::number(defaults.speed_max, 'f', 1));
+    
+    // FFT settings
+    dspFftSizeEdit->setText(QString::number(defaults.fft_size));
+    dspFftWindowTypeEdit->setText(QString::number(defaults.fft_window_type));
+    dspFftAveragingEdit->setText(QString::number(defaults.fft_averaging));
+    
+    // Filter settings
+    dspFilterEnabledEdit->setText(QString::number(defaults.filter_enabled));
+    dspMovingAvgEnabledEdit->setText(QString::number(defaults.moving_avg_enabled));
+    dspMovingAvgWindowEdit->setText(QString::number(defaults.moving_avg_window));
+    
+    // Line filter settings
+    dspLineFilter50HzEdit->setText(QString::number(defaults.line_filter_50hz));
+    dspLineFilter100HzEdit->setText(QString::number(defaults.line_filter_100hz));
+    dspLineFilter150HzEdit->setText(QString::number(defaults.line_filter_150hz));
+    
+    // Amplification settings
+    dspAmplificationEdit->setText(QString::number(defaults.amplification));
+    dspAutoAmplificationEdit->setText(QString::number(defaults.auto_amplification));
+    dspAutoAmpInnerThresholdEdit->setText(QString::number(defaults.auto_amp_inner_threshold));
+    dspAutoAmpOuterThresholdEdit->setText(QString::number(defaults.auto_amp_outer_threshold));
+    
+    // Target selection settings
+    dspTargetSelectionModeEdit->setText(QString::number(defaults.target_selection_mode));
+    dspMaxTargetsEdit->setText(QString::number(defaults.max_targets));
+    dspDirectionFilterEdit->setText(QString::number(defaults.direction_filter));
+    
+    // Signal processing settings
+    dspNoiseFloorTrackingEdit->setText(QString::number(defaults.noise_floor_tracking));
+    dspClutterRemovalEdit->setText(QString::number(defaults.clutter_removal));
+    dspDopplerCompensationEdit->setText(QString::number(defaults.doppler_compensation));
+    
+    // Azimuth settings
+    dspAzimuthOffsetEdit->setText(QString::number(defaults.azimuth_offset, 'f', 1));
+    dspAzimuthMinEdit->setText(QString::number(defaults.azimuth_min, 'f', 1));
+    dspAzimuthMaxEdit->setText(QString::number(defaults.azimuth_max, 'f', 1));
+}
+
+void MainWindow::applyDSPSettingsFromUI()
+{
+    // Collect settings from the UI line edits
+    DSP_Settings_t settings = collectDSPSettingsFromUI();
+    
+    // Update checksum before sending
+    settings.updateChecksum();
+    
+    // Check if we have a UDP connection
+    if (!udpConfigDialog || !udpConfigDialog->isConnected()) {
+        QMessageBox::warning(this, "Not Connected", 
+                            "Please connect to the radar via UDP Configuration first.\n\n"
+                            "Go to iSYS > UDP Configuration to connect.");
+        return;
+    }
+    
+    UdpHandler* handler = udpConfigDialog->getUdpHandler();
+    if (handler) {
+        // Connect the sent signal if not already connected
+        static bool signalConnected = false;
+        if (!signalConnected) {
+            connect(handler, &UdpHandler::dspSettingsSent, 
+                    this, &MainWindow::onDSPSettingsSent);
+            signalConnected = true;
+        }
+        
+        // Send the DSP settings via UDP
+        handler->sendDSPSettings(settings);
     }
 }
