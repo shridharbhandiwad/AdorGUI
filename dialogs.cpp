@@ -40,7 +40,7 @@ void UdpConfigDialog::setupUI()
     // Host address
     QHBoxLayout* hostLayout = new QHBoxLayout();
     hostLayout->addWidget(new QLabel("Host Address:"));
-    hostEdit = new QLineEdit("127.0.0.1"); // Default to loopback
+    hostEdit = new QLineEdit(QStringLiteral(UDP_GUI_IP)); // Default to GUI IP
     hostLayout->addWidget(hostEdit);
     layout->addLayout(hostLayout);
     
@@ -49,7 +49,7 @@ void UdpConfigDialog::setupUI()
     portLayout->addWidget(new QLabel("Port:"));
     portSpinBox = new QSpinBox();
     portSpinBox->setRange(1, 65535);
-    portSpinBox->setValue(5000); // Default to port 5000
+    portSpinBox->setValue(UDP_RECEIVE_PORT); // Default to receive port
     portLayout->addWidget(portSpinBox);
     layout->addLayout(portLayout);
     

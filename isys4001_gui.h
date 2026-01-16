@@ -185,7 +185,7 @@ private:
 
 // Constants
 namespace Constants {
-    const int DEFAULT_UDP_PORT = 4001;
+    const int DEFAULT_UDP_PORT = 5001;
     const int DATA_REQUEST_INTERVAL = 100; // ms
     const int CHART_UPDATE_INTERVAL = 50; // ms
     const int CHART_MIN_WIDTH = 400;
