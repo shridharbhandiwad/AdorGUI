@@ -2,6 +2,7 @@
 #include <QNetworkDatagram>
 #include <QHostAddress>
 #include <algorithm>
+#include <cstring>
 
 UdpHandler::UdpHandler(QObject *parent)
     : QObject(parent)
@@ -12,6 +13,8 @@ UdpHandler::UdpHandler(QObject *parent)
     , remotePort(5001)
     , maxDetections(1000)
     , detectionTimeoutMs(60000) // 60 seconds
+    , maxRawFrames(100)
+    , rawFramesReceived(0)
     , packetsReceived(0)
     , packetsDropped(0)
     , lastStatisticsUpdate(0)
@@ -135,9 +138,19 @@ void UdpHandler::readPendingDatagrams()
 
         if (datagram.isValid()) {
             QByteArray data = datagram.data();
+            bool parsed = false;
 
-            if (parseDetectionData(data)) {
-                //qDebug()<<packetsReceived<<"\n";
+            // First try to parse as binary data (check for message type header)
+            if (data.size() >= static_cast<int>(sizeof(uint32_t))) {
+                parsed = parseBinaryData(data);
+            }
+            
+            // If binary parsing failed, try text-based parsing
+            if (!parsed) {
+                parsed = parseDetectionData(QString::fromUtf8(data));
+            }
+
+            if (parsed) {
                 packetsReceived++;
                 lastPacketTime = QDateTime::currentMSecsSinceEpoch();
             } else {
@@ -364,6 +377,7 @@ void UdpHandler::resetStatistics()
 {
     packetsReceived = 0;
     packetsDropped = 0;
+    rawFramesReceived = 0;
     lastStatisticsUpdate = QDateTime::currentMSecsSinceEpoch();
     lastPacketTime = 0;
 }
@@ -428,4 +442,203 @@ bool UdpHandler::sendDSPSettings(const DSP_Settings_t& settings)
     qDebug() << "DSP Settings sent:" << bytesSent << "bytes to" << remoteHost << ":" << remotePort;
     emit dspSettingsSent(true);
     return true;
+}
+
+// ============================================================================
+// Raw Frame Data Methods
+// ============================================================================
+
+bool UdpHandler::parseBinaryData(const QByteArray& data)
+{
+    if (data.size() < static_cast<int>(sizeof(uint32_t))) {
+        return false;
+    }
+    
+    // Read the message type from the first 4 bytes
+    uint32_t messageType;
+    std::memcpy(&messageType, data.constData(), sizeof(uint32_t));
+    
+    switch (messageType) {
+        case MSG_TYPE_RAW_DATA:
+            return parseRawFrameData(data);
+            
+        case MSG_TYPE_DETECTION:
+            // Future: Handle binary detection format
+            return false;
+            
+        case MSG_TYPE_DSP_SETTINGS:
+            // Future: Handle incoming DSP settings (acknowledgment)
+            return false;
+            
+        case MSG_TYPE_STATUS:
+            // Future: Handle status messages
+            return false;
+            
+        default:
+            // Unknown message type - not a binary packet we recognize
+            return false;
+    }
+}
+
+bool UdpHandler::parseRawFrameData(const QByteArray& data)
+{
+    // Check minimum size for header
+    if (data.size() < static_cast<int>(sizeof(RawDataHeader_t))) {
+        qDebug() << "Raw frame data too small for header:" << data.size() 
+                 << "bytes, need" << sizeof(RawDataHeader_t);
+        return false;
+    }
+    
+    // Parse the header
+    RawDataHeader_t header;
+    std::memcpy(&header, data.constData(), sizeof(RawDataHeader_t));
+    
+    // Validate header fields
+    if (header.message_type != MSG_TYPE_RAW_DATA) {
+        qDebug() << "Invalid message type in raw frame:" << header.message_type;
+        return false;
+    }
+    
+    // Calculate expected data size
+    size_t expectedDataSize = static_cast<size_t>(header.getExpectedDataSize());
+    size_t totalExpectedSize = sizeof(RawDataHeader_t) + expectedDataSize;
+    
+    // Validate packet size
+    if (static_cast<size_t>(data.size()) < totalExpectedSize) {
+        qDebug() << "Raw frame data size mismatch: got" << data.size() 
+                 << "bytes, expected" << totalExpectedSize;
+        return false;
+    }
+    
+    // Validate the header parameters
+    if (!isValidRawFrame(header, data.size() - sizeof(RawDataHeader_t))) {
+        return false;
+    }
+    
+    // Create frame data structure
+    RawFrameData frameData;
+    frameData.header = header;
+    frameData.timestamp = QDateTime::currentMSecsSinceEpoch();
+    
+    // Extract sample data
+    uint32_t totalSamples = header.getTotalSamples();
+    frameData.samples.resize(totalSamples);
+    
+    // Copy sample data (samples are stored as floats after the header)
+    const float* samplePtr = reinterpret_cast<const float*>(data.constData() + sizeof(RawDataHeader_t));
+    std::memcpy(frameData.samples.data(), samplePtr, totalSamples * sizeof(float));
+    
+    // Add the frame to storage
+    addRawFrame(frameData);
+    
+    qDebug() << "Received raw frame: frame=" << header.frame_number 
+             << ", chirps=" << header.num_chirps
+             << ", rx=" << static_cast<int>(header.num_rx_antennas)
+             << ", samples=" << header.num_samples_per_chirp
+             << ", total_size=" << data.size() << "bytes";
+    
+    return true;
+}
+
+bool UdpHandler::isValidRawFrame(const RawDataHeader_t& header, size_t dataSize) const
+{
+    // Check frame number (allow any value, just log if it seems high)
+    if (header.frame_number > 1000000000) {
+        qDebug() << "Warning: Very high frame number:" << header.frame_number;
+    }
+    
+    // Check chirps (reasonable range: 1-1024)
+    if (header.num_chirps == 0 || header.num_chirps > 1024) {
+        qDebug() << "Invalid num_chirps:" << header.num_chirps;
+        return false;
+    }
+    
+    // Check RX antennas (reasonable range: 1-8)
+    if (header.num_rx_antennas == 0 || header.num_rx_antennas > 8) {
+        qDebug() << "Invalid num_rx_antennas:" << static_cast<int>(header.num_rx_antennas);
+        return false;
+    }
+    
+    // Check samples per chirp (reasonable range: 1-16384)
+    if (header.num_samples_per_chirp == 0 || header.num_samples_per_chirp > 16384) {
+        qDebug() << "Invalid num_samples_per_chirp:" << header.num_samples_per_chirp;
+        return false;
+    }
+    
+    // Check ADC resolution (reasonable range: 8-16 bits)
+    if (header.adc_resolution < 8 || header.adc_resolution > 16) {
+        qDebug() << "Warning: Unusual ADC resolution:" << static_cast<int>(header.adc_resolution);
+    }
+    
+    // Check data format
+    if (header.data_format > DATA_FORMAT_COMPLEX_SEPARATED) {
+        qDebug() << "Invalid data_format:" << header.data_format;
+        return false;
+    }
+    
+    // Verify data size matches expected
+    size_t expectedSize = header.getExpectedDataSize();
+    if (dataSize < expectedSize) {
+        qDebug() << "Data size mismatch: got" << dataSize << ", expected" << expectedSize;
+        return false;
+    }
+    
+    return true;
+}
+
+void UdpHandler::addRawFrame(const RawFrameData& frame)
+{
+    QMutexLocker locker(&rawFramesMutex);
+    
+    // Add new frame
+    rawFrames.push_back(frame);
+    rawFramesReceived++;
+    
+    // Remove oldest frames if we exceed max
+    while (static_cast<int>(rawFrames.size()) > maxRawFrames) {
+        rawFrames.pop_front();
+    }
+    
+    // Emit signal for new raw frame (outside of mutex lock)
+    locker.unlock();
+    emit rawFrameReceived(frame);
+    emit rawDataUpdated();
+}
+
+RawFrameData UdpHandler::getLatestRawFrame() const
+{
+    QMutexLocker locker(&rawFramesMutex);
+    
+    if (rawFrames.empty()) {
+        return RawFrameData();
+    }
+    
+    return rawFrames.back();
+}
+
+std::vector<RawFrameData> UdpHandler::getRecentRawFrames(int count) const
+{
+    QMutexLocker locker(&rawFramesMutex);
+    
+    std::vector<RawFrameData> result;
+    int numToReturn = std::min(count, static_cast<int>(rawFrames.size()));
+    
+    // Return the most recent frames
+    for (auto it = rawFrames.rbegin(); it != rawFrames.rend() && numToReturn > 0; ++it, --numToReturn) {
+        result.push_back(*it);
+    }
+    
+    return result;
+}
+
+int UdpHandler::getRawFrameCount() const
+{
+    QMutexLocker locker(&rawFramesMutex);
+    return static_cast<int>(rawFrames.size());
+}
+
+bool UdpHandler::hasRawFrameData() const
+{
+    QMutexLocker locker(&rawFramesMutex);
+    return !rawFrames.empty();
 }

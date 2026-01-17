@@ -2,7 +2,127 @@
 #define STRUCTURES_H
 
 #include <QtCore/QDateTime>
+#include <QtCore/QVector>
 #include <cstdint>
+#include <vector>
+
+// Message type identifiers for UDP packets
+enum MessageType : uint32_t {
+    MSG_TYPE_RAW_DATA = 0x01,       // Raw radar frame data
+    MSG_TYPE_DETECTION = 0x02,      // Detection/target data
+    MSG_TYPE_DSP_SETTINGS = 0x03,   // DSP configuration settings
+    MSG_TYPE_STATUS = 0x04          // System status messages
+};
+
+// Data format enumeration for raw data
+enum DataFormat : uint32_t {
+    DATA_FORMAT_REAL = 0,           // Real data only
+    DATA_FORMAT_COMPLEX = 1,        // Complex I/Q data (interleaved)
+    DATA_FORMAT_COMPLEX_SEPARATED = 2  // Complex data (I then Q)
+};
+
+// Raw data header structure - matches external system format exactly
+#pragma pack(push, 1)
+struct RawDataHeader_t {
+    uint32_t message_type;           // 0x01 for raw data
+    uint32_t frame_number;           // Frame sequence number
+    uint32_t num_chirps;             // Number of chirps in this frame
+    uint8_t  num_rx_antennas;        // Number of receive antennas
+    uint32_t num_samples_per_chirp;  // Samples per chirp
+    uint8_t  rx_mask;                // Receive antenna mask
+    uint8_t  adc_resolution;         // ADC resolution in bits
+    uint8_t  interleaved_rx;         // 1 if RX data is interleaved, 0 otherwise
+    uint32_t data_format;            // Data format (see DataFormat enum)
+    
+    // Default constructor
+    RawDataHeader_t() :
+        message_type(MSG_TYPE_RAW_DATA),
+        frame_number(0),
+        num_chirps(0),
+        num_rx_antennas(0),
+        num_samples_per_chirp(0),
+        rx_mask(0),
+        adc_resolution(12),
+        interleaved_rx(0),
+        data_format(DATA_FORMAT_REAL)
+    {}
+    
+    // Calculate expected data size in bytes (samples are float)
+    uint32_t getExpectedDataSize() const {
+        return num_samples_per_chirp * num_chirps * num_rx_antennas * sizeof(float);
+    }
+    
+    // Calculate total packet size including header
+    uint32_t getTotalPacketSize() const {
+        return sizeof(RawDataHeader_t) + getExpectedDataSize();
+    }
+    
+    // Get total number of samples
+    uint32_t getTotalSamples() const {
+        return num_samples_per_chirp * num_chirps * num_rx_antennas;
+    }
+};
+#pragma pack(pop)
+
+// Structure to hold a complete raw data frame
+struct RawFrameData {
+    RawDataHeader_t header;
+    std::vector<float> samples;      // Sample data (float format)
+    qint64 timestamp;                // Reception timestamp
+    
+    RawFrameData() : timestamp(0) {}
+    
+    // Check if frame is valid
+    bool isValid() const {
+        return header.message_type == MSG_TYPE_RAW_DATA &&
+               header.num_chirps > 0 &&
+               header.num_rx_antennas > 0 &&
+               header.num_samples_per_chirp > 0 &&
+               samples.size() == header.getTotalSamples();
+    }
+    
+    // Get samples for a specific chirp and antenna
+    const float* getSamples(uint32_t chirp, uint8_t antenna) const {
+        if (chirp >= header.num_chirps || antenna >= header.num_rx_antennas) {
+            return nullptr;
+        }
+        
+        uint32_t offset;
+        if (header.interleaved_rx) {
+            // Interleaved: sample[chirp][sample][antenna]
+            offset = (chirp * header.num_samples_per_chirp * header.num_rx_antennas) +
+                     (antenna);
+        } else {
+            // Non-interleaved: sample[chirp][antenna][sample]
+            offset = (chirp * header.num_rx_antennas * header.num_samples_per_chirp) +
+                     (antenna * header.num_samples_per_chirp);
+        }
+        
+        if (offset >= samples.size()) {
+            return nullptr;
+        }
+        
+        return &samples[offset];
+    }
+    
+    // Get all samples for a specific chirp (all antennas)
+    std::vector<float> getChirpSamples(uint32_t chirp) const {
+        std::vector<float> chirpData;
+        if (chirp >= header.num_chirps) {
+            return chirpData;
+        }
+        
+        uint32_t samplesPerChirp = header.num_samples_per_chirp * header.num_rx_antennas;
+        uint32_t offset = chirp * samplesPerChirp;
+        
+        if (offset + samplesPerChirp <= samples.size()) {
+            chirpData.assign(samples.begin() + offset, 
+                           samples.begin() + offset + samplesPerChirp);
+        }
+        
+        return chirpData;
+    }
+};
 
 // DSP Settings structure for radar configuration
 #pragma pack(push, 1)
