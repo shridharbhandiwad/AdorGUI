@@ -16,7 +16,7 @@ set(CMAKE_AUTOUIC ON)
 # Source files
 set(SOURCES
     main_app.cpp
-    mainwindow.cpp
+    mainwindow_basic.cpp
     customchart.cpp
     udphandler.cpp
     dialogs.cpp

@@ -159,4 +159,99 @@ The project requires:
 
 ---
 
+## 9. Raw Data Reception Structure (New)
+
+### Overview
+Added support for receiving raw radar frame data from an external system via UDP. The implementation matches the exact binary format specified by the external radar system.
+
+### Files Modified
+
+1. **structures.h**
+   - Added `RawDataHeader_t` packed structure matching external system format
+   - Added `RawFrameData` structure for storing complete frames with samples
+   - Added `MessageType` enum for packet type identification
+   - Added `DataFormat` enum for sample data format types
+   - Added helper methods for calculating data sizes and accessing samples
+
+2. **udphandler.h**
+   - Added raw frame data signals (`rawFrameReceived`, `rawDataUpdated`)
+   - Added raw frame storage with thread-safe access
+   - Added methods for accessing raw frame data (`getLatestRawFrame`, `getRecentRawFrames`, etc.)
+   - Added binary data parsing declarations
+
+3. **udphandler.cpp**
+   - Implemented binary packet detection and routing (`parseBinaryData`)
+   - Implemented raw frame parsing (`parseRawFrameData`)
+   - Implemented frame validation (`isValidRawFrame`)
+   - Added raw frame storage management with configurable buffer size
+   - Updated packet reception to try binary parsing first, then fall back to text formats
+
+4. **CMakeLists.txt**
+   - Fixed source file name (`mainwindow_basic.cpp` instead of `mainwindow.cpp`)
+
+### New Data Structures
+
+#### RawDataHeader_t (24 bytes, packed)
+```cpp
+struct RawDataHeader_t {
+    uint32_t message_type;           // 0x01 for raw data
+    uint32_t frame_number;           // Frame sequence number
+    uint32_t num_chirps;             // Number of chirps in this frame
+    uint8_t  num_rx_antennas;        // Number of receive antennas
+    uint32_t num_samples_per_chirp;  // Samples per chirp
+    uint8_t  rx_mask;                // Receive antenna mask
+    uint8_t  adc_resolution;         // ADC resolution in bits
+    uint8_t  interleaved_rx;         // 1 if RX data is interleaved
+    uint32_t data_format;            // Data format type
+};
+```
+
+### Test Sender Application
+
+Created a test application in `test_sender/` directory:
+
+1. **test_raw_data_sender.cpp** - Standalone UDP sender that simulates external radar system
+2. **verify_structures.cpp** - Verifies structure layout matches expected format
+3. **CMakeLists.txt** and **Makefile** - Build files
+4. **README.md** - Usage documentation
+
+#### Building the Test Sender
+```bash
+cd test_sender
+make
+```
+
+#### Running the Test Sender
+```bash
+./test_raw_data_sender -h 127.0.0.1 -p 5000 -n 100 -d 100
+```
+
+### Testing Procedure
+
+1. Start the iSys4001 GUI application
+2. Open UDP Configuration dialog and set port to 5000
+3. Connect to start receiving
+4. Run the test sender to send simulated radar frames
+5. Verify reception in the GUI (check packet statistics)
+
+### API Usage for Raw Frame Data
+
+```cpp
+// Access latest frame
+RawFrameData frame = udpHandler->getLatestRawFrame();
+if (frame.isValid()) {
+    qDebug() << "Frame" << frame.header.frame_number;
+    qDebug() << "Chirps:" << frame.header.num_chirps;
+    qDebug() << "Samples:" << frame.samples.size();
+}
+
+// Connect to raw frame signal
+connect(udpHandler, &UdpHandler::rawFrameReceived, 
+        [](const RawFrameData& frame) {
+    // Process frame data
+});
+```
+
+---
+
 *All modifications maintain backward compatibility and can be easily reverted if needed.*
